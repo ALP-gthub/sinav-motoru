@@ -1,0 +1,5 @@
+# Soru bankasi, gorseller ve sonuclar bu depoya asla eklenmez
+*.xlsx
+*.csv
+*.json
+gorseller/

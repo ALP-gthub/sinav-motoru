@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Sınav</title>
+<link rel="stylesheet" href="style.css?v=1">
+</head>
+<body>
+<header class="bar">
+  <div class="brand"><span class="mark" aria-hidden="true"></span><div><b id="examTitle">Sınav</b><small id="examSub"></small></div></div>
+  <div class="timer" id="timer" hidden aria-live="off"><span class="tlabel">Kalan süre</span><b id="timeLeft">--:--</b></div>
+</header>
+
+<main>
+  <!-- Yükleniyor / hata -->
+  <section id="vMessage" class="view center">
+    <div class="panel narrow"><div class="panelbody"><p id="message" class="message">Bağlantı kontrol ediliyor…</p></div></div>
+  </section>
+
+  <!-- Giriş -->
+  <section id="vStart" class="view" hidden>
+    <div class="startgrid">
+      <div class="panel">
+        <div class="panelhead"><h2>Sınav bilgileri</h2></div>
+        <div class="panelbody">
+          <div class="facts">
+            <div><span>Soru sayısı</span><b id="fCount">–</b></div>
+            <div><span>Süre</span><b id="fTime">–</b></div>
+          </div>
+          <div id="instructions" class="instructions"></div>
+        </div>
+      </div>
+      <form class="panel" id="startForm" novalidate>
+        <div class="panelhead"><h2>Katılımcı bilgileri</h2></div>
+        <div class="panelbody">
+          <div class="fields">
+            <label class="field"><span class="flabel">Ad</span><input id="pAd" autocomplete="given-name" required maxlength="60"></label>
+            <label class="field"><span class="flabel">Soyad</span><input id="pSoyad" autocomplete="family-name" required maxlength="60"></label>
+            <label class="field wide" id="wFirma" hidden><span class="flabel">Firma</span><input id="pFirma" autocomplete="organization" maxlength="120"></label>
+            <label class="field wide" id="wGorev" hidden><span class="flabel">Bölüm / görev</span><input id="pGorev" autocomplete="organization-title" maxlength="120"></label>
+          </div>
+          <div class="kvkk" id="wKvkk" hidden>
+            <div class="kvkktext" id="kvkkText"></div>
+            <label class="check"><input type="checkbox" id="pKvkk"> <span>Aydınlatma metnini okudum ve kabul ediyorum.</span></label>
+          </div>
+          <p class="error" id="startError" role="alert" hidden></p>
+          <button type="submit" class="primary" id="startBtn">Sınava başla</button>
+          <p class="hint" id="startHint">Başladığınızda süre işlemeye başlar.</p>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- Sınav -->
+  <section id="vExam" class="view" hidden>
+    <div class="examgrid">
+      <aside class="panel navpanel">
+        <div class="panelhead"><h2>Sorular</h2><small id="answeredCount"></small></div>
+        <div class="panelbody">
+          <div class="qnav" id="qnav" role="list"></div>
+          <div class="legend"><span><i class="lg ans"></i>Cevaplandı</span><span><i class="lg"></i>Boş</span><span id="lgDk" hidden><i class="lg dk"></i>Bilmiyorum</span></div>
+          <button type="button" class="secondary finish" id="finishBtn">Sınavı bitir</button>
+          <p class="hint" id="saveState" aria-live="polite"></p>
+        </div>
+      </aside>
+      <article class="panel qpanel">
+        <div class="panelhead"><h2 id="qHead">Soru</h2><small id="qSection"></small></div>
+        <div class="panelbody">
+          <div id="qGroup" class="qgroup" hidden><p id="qGroupNote"></p><img id="qGroupImg" alt="" hidden></div>
+          <p class="qtext" id="qText"></p>
+          <div id="qImgs" class="qimgs"></div>
+          <div class="options" id="qOptions" role="radiogroup"></div>
+          <div class="numeric" id="qNumeric" hidden><input id="qNumInput" inputmode="decimal" autocomplete="off"><span id="qUnit"></span></div>
+          <div class="qfoot">
+            <button type="button" class="secondary" id="prevBtn">Önceki</button>
+            <button type="button" class="ghost" id="clearBtn">Cevabı temizle</button>
+            <button type="button" class="primary" id="nextBtn">Sonraki</button>
+          </div>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <!-- Bitti -->
+  <section id="vDone" class="view center" hidden>
+    <div class="panel narrow"><div class="panelbody donebody">
+      <div class="okmark" aria-hidden="true"></div>
+      <h2>Cevaplarınız alındı</h2>
+      <p>Katılımınız için teşekkür ederiz. Bu pencereyi kapatabilirsiniz.</p>
+    </div></div>
+  </section>
+</main>
+
+<dialog id="confirm">
+  <form method="dialog">
+    <h2>Sınavı bitirmek istiyor musunuz?</h2>
+    <p id="confirmText"></p>
+    <div class="dlgbtns"><button value="no" class="secondary">Sınava dön</button><button value="yes" class="primary">Evet, bitir</button></div>
+  </form>
+</dialog>
+
+<script src="config.js?v=1"></script>
+<script src="app.js?v=1"></script>
+</body>
+</html>

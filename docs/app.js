@@ -314,6 +314,8 @@
     $("qHead").textContent = "Soru " + q.no;
     $("qSection").textContent = q.bolum;
     $("qGroup").hidden = !(q.grup_notu || q.grup_gorsel);
+    $("qGroupHead").textContent = q.grup_baslik || "";
+    $("qGroupHead").hidden = !q.grup_baslik;
     $("qGroupNote").textContent = q.grup_notu;
     const gi = $("qGroupImg");
     gi.hidden = !q.grup_gorsel;

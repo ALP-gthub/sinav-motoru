@@ -394,7 +394,14 @@ function dogruMu_(q, c) {
 function katilimciSorulari_(s, kod, form) {
   var karistir = evet_(s.sik_karistir);
   var klasor = gorselKlasoru_(s);
-  return formSorulari_(s.kod, form || "A").map(function (fq) {
+  var fqs = formSorulari_(s.kod, form || "A");
+  // Ortak şekilli grupların bu sınavdaki/formdaki gerçek soru numaraları.
+  var grupNo = {};
+  fqs.forEach(function (fq) {
+    var g = String(fq.q.grup || "").trim();
+    if (g) (grupNo[g] = grupNo[g] || []).push(fq.no);
+  });
+  return fqs.map(function (fq) {
     var q = fq.q;
     var secenekler = [];
     if (q.tur !== "sayi") {
@@ -403,9 +410,11 @@ function katilimciSorulari_(s, kod, form) {
         if (q[h] !== undefined && String(q[h]).trim() !== "") secenekler.push({ id: h, metin: String(q[h]) });
       });
     }
+    var g = String(q.grup || "").trim();
     return {
       no: fq.no,
       bolum: q.bolum || "",
+      grup_baslik: g && (q.grup_notu || q.grup_gorsel) ? grupBasligi_(grupNo[g], !!q.grup_gorsel) : "",
       grup_notu: q.grup_notu || "",
       grup_gorsel: q.grup_gorsel ? gorsel_(klasor, q.grup_gorsel) : "",
       soru: q.soru,
@@ -423,6 +432,33 @@ function katilimciSorulari_(s, kod, form) {
       secenekler: secenekler,
     };
   });
+}
+
+/** "Soru 12 ve 13 için ortak şekil" gibi, numaraları sınavın kendi sırasından yazar. */
+function grupBasligi_(nolar, sekilli) {
+  var n = (nolar || []).slice().sort(function (a, b) { return a - b; });
+  var ne = sekilli ? "ortak şekil" : "ortak bilgi";
+  if (n.length < 2) return "Soru " + (n[0] || "") + " için " + ne;
+  return "Soru " + n.slice(0, -1).join(", ") + " ve " + n[n.length - 1] + " için " + ne;
+}
+
+/** Ortak şekil notlarındaki sabit soru numaralarını kaldırır ("12 ve 13 numaralı soruları aşağıdaki" -> "Aşağıdaki"). */
+function grupNotuNumarasiz_(t) {
+  return String(t || "").replace(/^\s*\d+(\s*,\s*\d+)*\s+ve\s+\d+\s+numaralı\s+soruları\s+aşağıdaki/i, "Aşağıdaki");
+}
+
+/** Havuzdaki notlarda kalan sabit numaraları temizler. Kaç satırın değiştiğini döndürür. */
+function grupNotlariniDuzelt_() {
+  var n = 0;
+  tablo_("Havuz").kayitlar.forEach(function (r) {
+    var eski = String(r.kayit.grup_notu || "");
+    var yeni = grupNotuNumarasiz_(eski);
+    if (yeni !== eski) {
+      satirGuncelle_("Havuz", r.satir, { grup_notu: yeni });
+      n++;
+    }
+  });
+  return n;
 }
 
 /** Kişisel koda bağlı, her açılışta aynı kalan karıştırma. */
@@ -1823,7 +1859,7 @@ function gecisYap_(harita, kodlar) {
       }
       var satir = {
         soru_id: id, surum: 1, durum: "ONAYLI", konu: m.konu, bolum: q.bolum, zorluk: "", grup: grup,
-        grup_notu: q.grup_notu, grup_gorsel: q.grup_gorsel, soru: q.soru, gorsel: q.gorsel, tur: q.tur || "coktan",
+        grup_notu: grupNotuNumarasiz_(q.grup_notu), grup_gorsel: q.grup_gorsel, soru: q.soru, gorsel: q.gorsel, tur: q.tur || "coktan",
         A: q.A, B: q.B, C: q.C, D: q.D, E: q.E || "", dogru: q.dogru, tolerans: q.tolerans || "", birim: q.birim || "",
         gerekce: "", kaynak: m.yeni + " (" + m.eski + ") soru " + q.no, olusturma: new Date(), onay_tarihi: new Date(), not: "",
       };

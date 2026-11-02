@@ -1154,6 +1154,8 @@ function raporDosyasiOlustur(okod) {
         .setPosition(3, 5, 0, 0)
         .setOption("title", "Puan dağılımı")
         .setOption("legend", { position: "none" })
+        .setOption("vAxis", { title: "Kişi sayısı", format: "0", minValue: 0, gridlines: { count: -1 } })
+        .setOption("hAxis", { title: "Puan" })
         .setOption("width", 560)
         .setOption("height", 300)
         .build()

@@ -31,14 +31,22 @@ Gizlilik:
 ## E-Tablo sekmeleri
 
 - **Ayarlar:** `sinav_sayfasi` satırında bu sayfanın adresi.
-- **Sinavlar:** Her sınav bir satır. `kod`, `baslik`, `alt_baslik`, `sure_dk`, `aktif` (EVET/HAYIR), `aciklama` (katılımcıya gösterilen talimatlar; numaralı satırlar liste olur), `kvkk_metni`, `firma_sor`, `gorev_sor`, `bilmiyorum` (her soruya "Bilmiyorum" seçeneği), `sik_karistir`, `gorsel_klasor_id`, `hazirlayan` (sınav bilgilerinin altında gösterilir).
-- **Sorular:** Her soru bir satır. `sinav`, `no`, `bolum`, `grup_notu` ve `grup_gorsel` (birden fazla soruda ortak şekil), `soru`, `gorsel`, `tur` (`coktan` ya da `sayi`), `A` … `E`, `dogru`, `tolerans` ve `birim` (sayı girişli sorular için).
-- **Oturumlar:** Panelden açılan oturumlar ve ortak kodları.
+- **Havuz:** Soru bankası. Her soru bir satır: `soru_id` (KONU-NNNN, ör. PLC-0042), `surum`, `durum` (TASLAK, ONAYLI, ESKI), `konu`, `bolum`, `zorluk`, `grup`, `grup_notu` ve `grup_gorsel` (birden fazla soruda ortak şekil), `soru`, `gorsel`, `tur` (`coktan` ya da `sayi`), `A` … `E`, `dogru`, `tolerans`, `birim`, `gerekce`, `kaynak`. Onaylı bir soru değiştirilmez; panelden yeni sürümü açılır, eski sürüm saklanır.
+- **Kodlar:** MERKEZ, FIRMA ve KONU kısa kodları ve tam adları.
+- **Sinavlar:** Her sınav bir satır. `kod` (MERKEZ-FIRMA-KONU-NNN), `durum` (TASLAK, ONAYLI, ARSIV), `baslik`, `alt_baslik`, `sure_dk`, `aciklama` (talimatlar; `{soru_sayisi}` ve `{sure_dk}` yer tutucuları kullanılabilir), `kvkk_metni`, `firma_sor`, `gorev_sor`, `bilmiyorum`, `sik_karistir`, `gorsel_klasor_id`, `hazirlayan`.
+- **Sinav_Sorulari:** Sınavın hangi soruların hangi sürümünden oluştuğu.
+- **Formlar:** Her sınavın formları (A, B, C …): soru sırası ve şık yerleşimi. Sorular aynı kaldığı için sonuçlar formlar arasında karşılaştırılabilir.
+- **Kullanim:** Kâğıt üzerinde yapılan sınavların kaydı (tarih, form, kişi sayısı).
+- **Oturumlar:** Panelden açılan oturumlar, ortak kodları ve kullanılan form.
 - **Davetler:** Her katılımcının kişisel kodu ve durumu (ortak kodla girenler dahil).
 - **Sonuclar:** Her katılımcı için doğru, yanlış, boş, puan ve bölüm bazında sonuç.
-- **Detay_<SINAV KODU>:** Otomatik açılır; soru bazında verilen cevaplar, doğrular yeşil, yanlışlar kırmızı.
+- **Detay_<SINAV KODU>:** Otomatik açılır; soru kodu bazında verilen cevaplar, doğrular yeşil, yanlışlar kırmızı.
 
-Yeni bir firma ya da konu için kod değişikliği gerekmez: Sinavlar sekmesine bir satır, Sorular sekmesine soruları ekleyip davet bağlantısı oluşturmak yeterlidir.
+## Soru havuzu ve sınav hazırlama
+
+Paneldeki **Sınavlar** sekmesinde merkez, firma ve konu seçilerek yeni sınav hazırlanır. Her soru için kaç sınavda ve oturumda kullanıldığı, ölçülen doğru oranı ve seçilen firmanın o soruyu daha önce görüp görmediği gösterilir. "Öner" bölümlere orantılı dağıtır; firmanın görmediği ve az kullanılan soruları öne alır, ortak şekilli soruları bölmez. Sınav taslak olarak kaydedilir, onaylanınca oturumlarda kullanılabilir. Aynı firmaya daha önce verilmiş bir sınavın birebir aynısı onaylanamaz.
+
+Aynı çalışma içinde sınav tekrarlanacaksa sınav sayfasındaki "Yeni form oluştur" ile soruların sırası (bölüm içinde) ve şıkların yeri değişen yeni bir form üretilir.
 
 ## Kurulum
 

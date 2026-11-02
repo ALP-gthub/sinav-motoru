@@ -82,6 +82,24 @@ tr.sel td{background:var(--accent-soft)}
 td.chk{width:28px}
 .warnbox{background:var(--warn-soft);color:#6b4a00;border-radius:8px;padding:8px 12px;font-size:13px;margin:8px 0}
 .okbox{background:var(--good-soft);color:var(--good);border-radius:8px;padding:8px 12px;font-size:13px;margin:8px 0}
+.pvlink{white-space:nowrap;background:none;border:0;padding:0;font:inherit;font-weight:700;color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.btn.small{white-space:nowrap}
+.sekil{display:inline-block;font-size:11px;font-weight:600;padding:1px 7px;border-radius:999px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+.pv{position:fixed;inset:0;background:rgba(20,28,36,.45);z-index:30;display:flex;align-items:flex-start;justify-content:center;padding:24px;overflow:auto}
+.pv[hidden]{display:none}
+.pv .kart{background:#fff;border-radius:12px;max-width:860px;width:100%;padding:20px 24px;box-shadow:0 10px 40px rgba(0,0,0,.2)}
+.pv .ust{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:8px}
+.pv h3{margin:0;font-size:18px}
+.pv .meta{font-size:13px;color:var(--muted);margin-bottom:12px}
+.pv .gnot{background:#f5f7f9;border-radius:8px;padding:10px 12px;margin:10px 0;font-size:14px;white-space:pre-wrap}
+.pv .metin{font-size:15px;line-height:1.5;white-space:pre-wrap;margin:10px 0}
+.pv img{display:block;max-width:100%;max-height:440px;margin:10px auto;border:1px solid var(--line);border-radius:6px}
+.pv .eksik{color:var(--bad);font-size:13px;margin:8px 0}
+.pv ol{list-style:none;padding:0;margin:12px 0}
+.pv li{padding:8px 12px;border:1px solid var(--line);border-radius:8px;margin:6px 0;font-size:14px}
+.pv li.dogru{border-color:var(--good);background:var(--good-soft)}
+.pv li b{margin-right:8px}
+.pv .alt{font-size:13px;color:var(--muted);margin-top:10px}
 .loading{position:fixed;inset:0;background:rgba(243,245,247,.6);display:flex;align-items:center;justify-content:center;z-index:30;font-weight:600}
 </style>
 </head>
@@ -208,7 +226,7 @@ td.chk{width:28px}
           <button class="btn primary" id="hzKaydet">Taslak olarak kaydet</button>
         </div></div>
         <div class="panel"><div class="scroll" style="max-height:520px"><table>
-          <thead><tr><th class="chk"></th><th>Soru</th><th>Bölüm</th><th>Zorluk</th><th class="num">Ölçülen doğru</th><th class="num">Kullanım</th><th>Bu firma gördü</th><th>Son kullanım</th><th>Metin</th></tr></thead>
+          <thead><tr><th class="chk"></th><th>Soru</th><th>Bölüm</th><th>Zorluk</th><th>Şekil</th><th class="num">Ölçülen doğru</th><th class="num">Kullanım</th><th>Bu firma gördü</th><th>Son kullanım</th><th>Metin</th></tr></thead>
           <tbody id="hzBody"></tbody>
         </table></div></div>
       </div>
@@ -221,6 +239,7 @@ td.chk{width:28px}
       <select id="hvKonu"></select>
       <select id="hvDurum"><option value="">Tüm durumlar</option><option>ONAYLI</option><option>TASLAK</option><option>ESKI</option><option>EMEKLI</option></select>
       <select id="hvFirma"></select>
+      <select id="hvSekil"><option value="">Şekil: tümü</option><option value="var">Şekilli sorular</option><option value="yok">Yalnız metin</option></select>
       <select id="hvKul"><option value="">Kullanım: tümü</option><option value="hic">Hiç kullanılmamış</option><option value="6ay">Son 6 ayda kullanılmamış</option></select>
       <input id="hvAra" placeholder="Ara: kod ya da metin" style="min-width:200px">
       <span class="spacer" style="flex:1"></span>
@@ -229,12 +248,13 @@ td.chk{width:28px}
     <p class="hint" style="margin:0 14px 10px">Yeni soru ve taslak metinleri E-Tablodaki Havuz sekmesine eklenir; burada onaylanır. Onaylı bir soruyu değiştirmek için "Yeni sürüm" ile düzenlenebilir bir kopya açılır, eski sürüm korunur.</p>
     </div>
     <div class="panel"><div class="scroll" style="max-height:600px"><table>
-      <thead><tr><th>Soru</th><th>Sürüm</th><th>Durum</th><th>Bölüm</th><th>Zorluk</th><th>Metin</th><th class="num">Sınav</th><th class="num">Oturum</th><th class="num">Kişi</th><th>Firmalar</th><th>Son kullanım</th><th class="num">Ölçülen doğru</th><th></th></tr></thead>
+      <thead><tr><th>Soru</th><th>Sürüm</th><th>Durum</th><th>Bölüm</th><th>Zorluk</th><th>Şekil</th><th>Metin</th><th class="num">Sınav</th><th class="num">Oturum</th><th class="num">Kişi</th><th>Firmalar</th><th>Son kullanım</th><th class="num">Ölçülen doğru</th><th></th></tr></thead>
       <tbody id="hvBody"></tbody>
     </table></div></div>
   </section>
 </main>
 
+<div class="pv" id="pv" hidden><div class="kart" id="pvKart"></div></div>
 <div class="overlay" id="overlay" hidden>
   <div class="ovbtns"><button class="btn" id="ovTab">Projeksiyon için yeni sekmede aç</button><button class="btn" id="ovClose">Kapat</button></div>
   <h1 id="ovTitle"></h1>
@@ -516,6 +536,32 @@ td.chk{width:28px}
     }).join("");
   }
 
+  // ---------- Soru önizleme ----------
+  function pvLink(id, surum) { return '<button type="button" class="pvlink" data-pv="' + esc(id) + '"' + (surum ? ' data-pvs="' + surum + '"' : "") + ' title="Soruyu şekilleriyle göster">' + esc(id) + "</button>"; }
+  function sekilRozet(n) { return n ? '<span class="sekil">' + n + " şekil</span>" : ""; }
+  function pvKapat() { $("pv").hidden = true; $("pvKart").innerHTML = ""; }
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest("[data-pv]");
+    if (!b) return;
+    e.preventDefault();
+    $("pvKart").innerHTML = '<p class="muted">Soru yükleniyor…</p>';
+    $("pv").hidden = false;
+    sunucu("soruOnizle", [b.dataset.pv, b.dataset.pvs ? Number(b.dataset.pvs) : null]).then(function (q) {
+      var img = function (g) { return g.veri ? '<img src="' + g.veri + '" alt="' + esc(g.ad) + '">' : '<p class="eksik">Şekil bulunamadı: ' + esc(g.ad) + (q.klasor_yok ? " (görsel klasörü tanımlı değil)" : " (Drive klasöründe bu adla dosya yok)") + "</p>"; };
+      var h = '<div class="ust"><div><h3>' + esc(q.id) + " · v" + q.surum + " " + rozet(q.durum) + "</h3></div>" +
+        '<button class="btn small" data-x="pvkapat">Kapat</button></div>' +
+        '<div class="meta">' + esc(q.konu) + " · " + esc(q.bolum) + (q.zorluk ? " · " + esc(q.zorluk) : "") + (q.grup ? " · ortak şekil grubu " + esc(q.grup) : "") + "</div>";
+      if (q.grup_notu || q.grup_gorsel) h += '<div class="gnot">' + esc(q.grup_notu) + (q.grup_gorsel ? img(q.grup_gorsel) : "") + "</div>";
+      h += '<div class="metin">' + esc(q.soru) + "</div>" + q.gorseller.map(img).join("");
+      if (q.tur === "sayi") h += '<p><b>Doğru cevap:</b> ' + esc(q.dogru) + " " + esc(q.birim) + (q.tolerans ? " (tolerans ±" + esc(q.tolerans) + ")" : "") + "</p>";
+      else h += "<ol>" + q.siklar.map(function (s) { return '<li class="' + (s.id === q.dogru ? "dogru" : "") + '"><b>' + s.id + ")</b>" + esc(s.metin) + "</li>"; }).join("") + "</ol>";
+      if (q.gerekce || q.kaynak) h += '<div class="alt">' + (q.gerekce ? "Gerekçe: " + esc(q.gerekce) + "<br>" : "") + (q.kaynak ? "Kaynak: " + esc(q.kaynak) : "") + "</div>";
+      $("pvKart").innerHTML = h;
+    }).catch(function (err) { $("pvKart").innerHTML = '<p class="error">Hata: ' + esc(String(err)) + '</p><button class="btn small" data-x="pvkapat">Kapat</button>'; });
+  });
+  $("pv").addEventListener("click", function (e) { if (e.target === $("pv") || e.target.closest('[data-x="pvkapat"]')) pvKapat(); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !$("pv").hidden) pvKapat(); });
+
   // ---------- Sınavlar ----------
   function sinavlarCiz() {
     $("snBody").innerHTML = veri.sinavlar.slice().reverse().map(function (s) {
@@ -554,9 +600,9 @@ td.chk{width:28px}
         h += '<div class="toolbar" style="margin-top:10px"><span class="flabel" style="margin:0">Kâğıt sınav kaydı:</span><input type="date" id="kgTarih"><input type="number" id="kgKisi" placeholder="Kişi" min="0" style="width:90px;min-width:0"><input id="kgForm" placeholder="Form" maxlength="1" style="width:70px;min-width:0" value="A"><input id="kgNot" placeholder="Not" style="min-width:200px"><button class="btn small" data-x="kagit">Ekle</button></div>';
       }
       h += '<p class="error" id="sdErr" hidden></p></div></div>';
-      h += '<div class="panel"><div class="ph"><h2>Sorular</h2><span class="hint" style="margin:0">kırmızı: bu firma daha önce gördü</span></div><div class="scroll" style="max-height:480px"><table><thead><tr><th class="num">No</th><th>Soru</th><th>Bölüm</th><th>Zorluk</th><th class="num">Ölçülen doğru</th><th class="num">Sınav</th><th>Bu firma gördü</th><th>Metin</th></tr></thead><tbody>' +
+      h += '<div class="panel"><div class="ph"><h2>Sorular</h2><span class="hint" style="margin:0">kırmızı: bu firma daha önce gördü</span></div><div class="scroll" style="max-height:480px"><table><thead><tr><th class="num">No</th><th>Soru</th><th>Bölüm</th><th>Zorluk</th><th>Şekil</th><th class="num">Ölçülen doğru</th><th class="num">Sınav</th><th>Bu firma gördü</th><th>Metin</th></tr></thead><tbody>' +
         d.sorular.map(function (q) {
-          return '<tr><td class="num">' + q.no + "</td><td><b>" + esc(q.id) + '</b> <span class="muted">v' + q.surum + "</span></td><td>" + esc(q.bolum) + "</td><td>" + esc(q.zorluk) + '</td><td class="num">' + yuzde(q.kullanim.olculen) +
+          return '<tr><td class="num">' + q.no + "</td><td>" + pvLink(q.id, q.surum) + ' <span class="muted">v' + q.surum + "</span></td><td>" + esc(q.bolum) + "</td><td>" + esc(q.zorluk) + "</td><td>" + sekilRozet(q.sekil) + '</td><td class="num">' + yuzde(q.kullanim.olculen) +
             '</td><td class="num">' + q.kullanim.sinavlar.length + "</td><td" + (q.firma_gordu ? ' class="seen"' : "") + ">" + (q.firma_gordu ? (q.firma_gordu === "tarihsiz" ? "Evet" : esc(gun(q.firma_gordu))) : "") + '</td><td title="' + esc(q.soru) + '">' + esc(kisa(q.soru, 70)) + "</td></tr>";
         }).join("") + "</tbody></table></div></div>";
       $("snDetay").innerHTML = h;
@@ -607,8 +653,8 @@ td.chk{width:28px}
   function hzCiz() {
     $("hzBody").innerHTML = hz.adaylar.map(function (q) {
       var g = gordu(q);
-      return '<tr class="' + (hz.secili[q.id] ? "sel" : "") + '"><td class="chk"><input type="checkbox" data-q="' + esc(q.id) + '"' + (hz.secili[q.id] ? " checked" : "") + "></td><td><b>" + esc(q.id) + "</b>" + (q.grup ? ' <span class="muted">' + esc(q.grup) + "</span>" : "") +
-        "</td><td>" + esc(q.bolum) + "</td><td>" + esc(q.zorluk) + '</td><td class="num">' + yuzde(q.kullanim.olculen) + '</td><td class="num">' + q.kullanim.oturum + "</td><td" + (g ? ' class="seen"' : "") + ">" +
+      return '<tr class="' + (hz.secili[q.id] ? "sel" : "") + '"><td class="chk"><input type="checkbox" data-q="' + esc(q.id) + '"' + (hz.secili[q.id] ? " checked" : "") + "></td><td>" + pvLink(q.id) + (q.grup ? ' <span class="muted">' + esc(q.grup) + "</span>" : "") +
+        "</td><td>" + esc(q.bolum) + "</td><td>" + esc(q.zorluk) + "</td><td>" + sekilRozet(q.sekil) + '</td><td class="num">' + yuzde(q.kullanim.olculen) + '</td><td class="num">' + q.kullanim.oturum + "</td><td" + (g ? ' class="seen"' : "") + ">" +
         (g ? (q.kullanim.firmalar[hz.firma] ? esc(gun(q.kullanim.firmalar[hz.firma])) : "Evet") : "") + "</td><td>" + esc(gun(q.kullanim.son)) + '</td><td title="' + esc(q.soru) + '">' + esc(kisa(q.soru, 60)) + "</td></tr>";
     }).join("");
     hzOzet();
@@ -693,10 +739,12 @@ td.chk{width:28px}
     }).catch(function (e) { yukleniyor(false); alert("Hata: " + e); });
   }
   function havuzCiz() {
-    var konu = $("hvKonu").value, durum = $("hvDurum").value, firma = $("hvFirma").value, kul = $("hvKul").value, ara = $("hvAra").value.trim().toLocaleLowerCase("tr");
+    var sekil = $("hvSekil").value, konu = $("hvKonu").value, durum = $("hvDurum").value, firma = $("hvFirma").value, kul = $("hvKul").value, ara = $("hvAra").value.trim().toLocaleLowerCase("tr");
     var altiAy = Date.now() - 183 * 864e5;
     var l = havuz.filter(function (q) {
       if (konu && q.konu !== konu) return false;
+      if (sekil === "var" && !q.sekil) return false;
+      if (sekil === "yok" && q.sekil) return false;
       if (durum && q.durum !== durum) return false;
       if (kul === "hic" && q.kullanim.oturum) return false;
       if (kul === "6ay" && q.kullanim.son && new Date(q.kullanim.son).getTime() > altiAy) return false;
@@ -708,12 +756,12 @@ td.chk{width:28px}
       var f = Object.keys(q.kullanim.firmalar);
       var gor = firma && f.indexOf(firma) >= 0;
       var islem = q.durum === "TASLAK" ? '<button class="btn small" data-on="' + esc(q.id) + '" data-v="' + q.surum + '">Onayla</button>' : '<button class="btn small" data-ys="' + esc(q.id) + '">Yeni sürüm</button>';
-      return "<tr" + (gor ? ' class="sel"' : "") + "><td><b>" + esc(q.id) + "</b></td><td>v" + q.surum + (q.onayli_surum && q.onayli_surum !== q.surum ? ' <span class="muted">(onaylı v' + q.onayli_surum + ")</span>" : "") + "</td><td>" + rozet(q.durum) + "</td><td>" + esc(q.bolum) + "</td><td>" + esc(q.zorluk) +
-        '</td><td title="' + esc(q.soru) + '">' + esc(kisa(q.soru, 60)) + '</td><td class="num">' + q.kullanim.sinavlar.length + '</td><td class="num">' + q.kullanim.oturum + '</td><td class="num">' + q.kullanim.katilimci + "</td><td" + (gor ? ' class="seen"' : "") + ">" + esc(f.join(", ")) +
+      return "<tr" + (gor ? ' class="sel"' : "") + "><td>" + pvLink(q.id, q.surum) + "</td><td>v" + q.surum + (q.onayli_surum && q.onayli_surum !== q.surum ? ' <span class="muted">(onaylı v' + q.onayli_surum + ")</span>" : "") + "</td><td>" + rozet(q.durum) + "</td><td>" + esc(q.bolum) + "</td><td>" + esc(q.zorluk) +
+        "</td><td>" + sekilRozet(q.sekil) + '</td><td title="' + esc(q.soru) + '">' + esc(kisa(q.soru, 60)) + '</td><td class="num">' + q.kullanim.sinavlar.length + '</td><td class="num">' + q.kullanim.oturum + '</td><td class="num">' + q.kullanim.katilimci + "</td><td" + (gor ? ' class="seen"' : "") + ">" + esc(f.join(", ")) +
         "</td><td>" + esc(gun(q.kullanim.son)) + '</td><td class="num">' + yuzde(q.kullanim.olculen) + "</td><td>" + islem + "</td></tr>";
-    }).join("") || '<tr><td colspan="13" class="empty">Kayıt yok.</td></tr>';
+    }).join("") || '<tr><td colspan="14" class="empty">Kayıt yok.</td></tr>';
   }
-  ["hvKonu", "hvDurum", "hvFirma", "hvKul"].forEach(function (id) { $(id).addEventListener("change", havuzCiz); });
+  ["hvKonu", "hvDurum", "hvFirma", "hvKul", "hvSekil"].forEach(function (id) { $(id).addEventListener("change", havuzCiz); });
   $("hvAra").addEventListener("input", havuzCiz);
   $("hvBody").addEventListener("click", function (e) {
     var b = e.target.closest("button");

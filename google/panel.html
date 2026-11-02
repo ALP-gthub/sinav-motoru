@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<base target="_top">
+<style>
+:root{--bg:#f3f5f7;--panel:#fff;--text:#16202a;--muted:#64717e;--line:#dde3e9;--soft:#f7f9fb;--accent:#1457d9;--accent-soft:#eef3fd;--good:#1f8a4c;--good-soft:#e9f6ee;--bad:#b42318;--bad-soft:#fdecea;--warn:#a86700;--warn-soft:#fdf3df;--font:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 var(--font)}
+[hidden]{display:none!important}
+.tabs{display:flex;gap:4px;background:var(--panel);border-bottom:1px solid var(--line);padding:0 16px;position:sticky;top:0;z-index:5}
+.tabs button{background:none;border:0;border-bottom:2px solid transparent;padding:12px 12px 10px;font:600 14px var(--font);color:var(--muted);cursor:pointer}
+.tabs button[aria-selected=true]{color:var(--accent);border-bottom-color:var(--accent)}
+.tabs .spacer{flex:1}
+.tabs .refresh{color:var(--muted);font-weight:500}
+main{padding:16px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;margin-bottom:14px}
+.ph{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.ph h2{margin:0;font-size:15px}
+.pb{padding:14px}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field{display:block}
+.field.wide{grid-column:1 / -1}
+.flabel{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px}
+input,select{width:100%;height:36px;padding:0 10px;border:1px solid #cdd5dd;border-radius:7px;font:14px var(--font);color:var(--text);background:#fff}
+button.btn{font:600 14px var(--font);border-radius:7px;cursor:pointer;height:36px;padding:0 14px;border:1px solid #cdd5dd;background:#fff;color:var(--text)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.small{height:28px;padding:0 10px;font-size:12px}
+button:disabled{opacity:.5;cursor:default}
+.hint{font-size:12px;color:var(--muted);margin:6px 0 0}
+.error{color:var(--bad);font-size:13px;margin:8px 0 0}
+.codebox{text-align:center}
+.code{font:700 44px/1.1 ui-monospace,Consolas,monospace;letter-spacing:6px;margin:6px 0}
+.qr{display:flex;justify-content:center;margin:10px 0}
+.qr img,.qr canvas{width:220px;height:220px}
+.linkrow{display:flex;gap:8px;margin-top:8px}
+.linkrow input{font-size:12px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+thead th{font-size:12px;color:var(--muted);background:var(--soft);font-weight:600;white-space:nowrap}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.badge{display:inline-block;font-size:11px;font-weight:700;border-radius:999px;padding:2px 8px}
+.b-acik{background:var(--good-soft);color:var(--good)}
+.b-kapali{background:#eef1f4;color:#596672}
+.b-bitti{background:var(--warn-soft);color:var(--warn)}
+.kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.kpi span{display:block;font-size:12px;color:var(--muted)}
+.kpi b{font-size:22px;font-variant-numeric:tabular-nums}
+.hist{display:grid;grid-template-columns:repeat(10,1fr);gap:6px;align-items:end;height:160px;padding-top:10px}
+.hist .col{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%}
+.hist .bar{width:100%;background:var(--accent);border-radius:4px 4px 0 0;min-height:1px}
+.hist .v{font-size:11px;color:var(--muted);margin-bottom:2px}
+.hist .lbl{font-size:10px;color:var(--muted);margin-top:4px;white-space:nowrap}
+.hbar{display:grid;grid-template-columns:minmax(140px,240px) 1fr 52px;gap:10px;align-items:center;margin:6px 0;font-size:13px}
+.track{height:12px;background:#e7ebef;border-radius:99px;overflow:hidden}
+.track div{height:100%;border-radius:99px}
+.lo{background:var(--bad)}.mid{background:#e3a008}.hi{background:var(--good)}
+.mini{display:inline-block;width:70px;height:8px;background:#e7ebef;border-radius:99px;overflow:hidden;vertical-align:middle;margin-right:6px}
+.mini i{display:block;height:100%}
+.scroll{max-height:360px;overflow:auto}
+.empty{color:var(--muted);text-align:center;padding:24px}
+.overlay{position:fixed;inset:0;background:#fff;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center}
+.overlay .code{font-size:72px}
+.overlay .qr img,.overlay .qr canvas{width:380px;height:380px}
+.overlay p{margin:0;color:var(--muted);font-size:18px}
+.overlay h1{margin:0;font-size:24px}
+.close{position:absolute;top:12px;right:12px}
+.loading{position:fixed;inset:0;background:rgba(243,245,247,.6);display:flex;align-items:center;justify-content:center;z-index:30;font-weight:600}
+</style>
+</head>
+<body>
+<nav class="tabs" role="tablist">
+  <button data-t="yeni" aria-selected="true">Yeni oturum</button>
+  <button data-t="liste" aria-selected="false">Oturumlar</button>
+  <button data-t="rapor" aria-selected="false">Rapor</button>
+  <span class="spacer"></span>
+  <button class="refresh" id="refresh">Yenile</button>
+</nav>
+<main>
+  <!-- Yeni oturum -->
+  <section id="t-yeni">
+    <div class="grid2">
+      <form class="panel" id="form">
+        <div class="ph"><h2>Oturum bilgileri</h2></div>
+        <div class="pb">
+          <div class="fields">
+            <label class="field wide"><span class="flabel">Sınav</span><select id="fSinav" required></select></label>
+            <label class="field"><span class="flabel">Firma</span><input id="fFirma" maxlength="120" placeholder="Katılımcıların firması"></label>
+            <label class="field"><span class="flabel">Eğitim merkezi</span><input id="fMerkez" maxlength="120"></label>
+            <label class="field"><span class="flabel">Kişi sayısı</span><input id="fKisi" type="number" min="1" max="1000" required></label>
+            <span></span>
+            <label class="field"><span class="flabel">Girişler açılsın</span><input id="fBas" type="datetime-local" required></label>
+            <label class="field"><span class="flabel">Girişler kapansın</span><input id="fBit" type="datetime-local" required></label>
+            <label class="field wide"><span class="flabel">Not (yalnızca sizin için)</span><input id="fNot" maxlength="300"></label>
+          </div>
+          <p class="hint">Kapanış saati yalnızca yeni girişleri durdurur; o saate kadar başlayan katılımcı kendi süresi dolana kadar devam eder. Kişi sayısına ulaşılınca yeni giriş kabul edilmez.</p>
+          <p class="error" id="formErr" hidden></p>
+          <div style="margin-top:12px"><button class="btn primary" type="submit" id="createBtn">Oturum oluştur</button></div>
+        </div>
+      </form>
+      <div class="panel" id="result" hidden>
+        <div class="ph"><h2>Giriş kodu</h2><button class="btn small" id="fullBtn">Tam ekran göster</button></div>
+        <div class="pb codebox">
+          <div class="hint" id="rSinav"></div>
+          <div class="code" id="rCode"></div>
+          <div class="qr" id="rQr"></div>
+          <div class="linkrow"><input id="rLink" readonly><button class="btn" id="copyBtn">Kopyala</button></div>
+          <p class="hint">Bağlantıyı katılımcılara gönderin ya da karekodu sınıfta gösterin. Herkes aynı kodla girer, ancak her katılımcının sınavı ve sonucu ayrıdır.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Oturumlar -->
+  <section id="t-liste" hidden>
+    <div class="panel">
+      <div class="ph"><h2>Oturumlar</h2></div>
+      <div class="pb" style="padding:0">
+        <div class="scroll" style="max-height:640px">
+          <table>
+            <thead><tr><th>Kod</th><th>Sınav</th><th>Firma</th><th>Eğitim merkezi</th><th>Giriş aralığı</th><th class="num">Kişi</th><th class="num">Devam</th><th class="num">Bitti</th><th>Durum</th><th></th></tr></thead>
+            <tbody id="listBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Rapor -->
+  <section id="t-rapor" hidden>
+    <div class="panel"><div class="pb" style="display:flex;gap:10px;align-items:center">
+      <span class="flabel" style="margin:0">Oturum</span>
+      <select id="rpSel" style="max-width:520px"></select>
+      <button class="btn" id="rpLoad">Göster</button>
+    </div></div>
+    <div id="rpBody"></div>
+  </section>
+</main>
+
+<div class="overlay" id="overlay" hidden>
+  <button class="btn close" id="ovClose">Kapat</button>
+  <h1 id="ovTitle"></h1>
+  <div class="qr" id="ovQr"></div>
+  <p>Karekodu okutun ya da adrese gidip kodu girin</p>
+  <div class="code" id="ovCode"></div>
+  <p id="ovLink"></p>
+</div>
+<div class="loading" id="loading" hidden>Yükleniyor…</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var veri = null;
+  var sonKod = "";
+
+  function sunucu(fn, args) {
+    return new Promise(function (ok, hata) {
+      var r = google.script.run.withSuccessHandler(ok).withFailureHandler(function (e) { hata(e && e.message ? e.message : String(e)); });
+      r[fn].apply(r, args || []);
+    });
+  }
+  function yukleniyor(v) { $("loading").hidden = !v; }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function tarih(iso) {
+    if (!iso) return "";
+    var d = new Date(iso);
+    return d.toLocaleString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  }
+  function saat(iso) { return iso ? new Date(iso).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }) : ""; }
+  function yerelGiris(d) {
+    var p = function (n) { return String(n).padStart(2, "0"); };
+    return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + "T" + p(d.getHours()) + ":" + p(d.getMinutes());
+  }
+  function baglanti(kod) { return (veri.sinav_sayfasi || "").replace(/\/?$/, "/") + "?o=" + kod; }
+  function sinavAdi(kod) {
+    var s = (veri.sinavlar || []).filter(function (x) { return x.kod === kod; })[0];
+    return s ? s.baslik : kod;
+  }
+  function yuzdeSinif(v) { return v == null ? "" : v < 50 ? "lo" : v < 70 ? "mid" : "hi"; }
+  function yuzde(v) { return v == null ? "-" : "%" + String(v).replace(".", ","); }
+  function sayi(v) { return v == null ? "-" : String(v).replace(".", ","); }
+
+  function qrCiz(el, metin, boyut) {
+    el.textContent = "";
+    if (typeof QRCode === "undefined") {
+      el.innerHTML = '<p class="hint">Karekod oluşturulamadı (internet bağlantısı gerekli). Bağlantıyı kullanabilirsiniz.</p>';
+      return;
+    }
+    new QRCode(el, { text: metin, width: boyut, height: boyut, correctLevel: QRCode.CorrectLevel.M });
+  }
+
+  // ---------- Sekmeler ----------
+  function sekme(t) {
+    document.querySelectorAll(".tabs [data-t]").forEach(function (b) { b.setAttribute("aria-selected", String(b.dataset.t === t)); });
+    ["yeni", "liste", "rapor"].forEach(function (x) { $("t-" + x).hidden = x !== t; });
+  }
+  document.querySelectorAll(".tabs [data-t]").forEach(function (b) { b.addEventListener("click", function () { sekme(b.dataset.t); }); });
+
+  // ---------- Veri ----------
+  function yukle() {
+    yukleniyor(true);
+    return sunucu("panelVeri").then(function (v) {
+      veri = v;
+      formDoldur();
+      listeCiz();
+      raporSecenekleri();
+      yukleniyor(false);
+    }).catch(function (e) { yukleniyor(false); alertHata(e); });
+  }
+  function alertHata(e) { $("formErr").textContent = "Hata: " + e; $("formErr").hidden = false; }
+
+  function formDoldur() {
+    var sel = $("fSinav");
+    var secili = sel.value;
+    sel.innerHTML = veri.sinavlar.map(function (s) {
+      return '<option value="' + esc(s.kod) + '">' + esc(s.baslik) + " (" + esc(s.kod) + ", " + s.soru_sayisi + " soru, " + s.sure_dk + " dk)</option>";
+    }).join("");
+    if (secili) sel.value = secili;
+    if (!$("fMerkez").value && veri.oturumlar.length) $("fMerkez").value = veri.oturumlar[0].egitim_merkezi;
+    if (!$("fBas").value) {
+      var simdi = new Date();
+      simdi.setSeconds(0, 0);
+      $("fBas").value = yerelGiris(simdi);
+      $("fBit").value = yerelGiris(new Date(simdi.getTime() + 2 * 3600 * 1000));
+    }
+  }
+
+  // ---------- Yeni oturum ----------
+  $("form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    $("formErr").hidden = true;
+    var g = {
+      sinav: $("fSinav").value,
+      firma: $("fFirma").value.trim(),
+      egitim_merkezi: $("fMerkez").value.trim(),
+      kontenjan: $("fKisi").value,
+      baslangic: new Date($("fBas").value).toISOString(),
+      bitis: new Date($("fBit").value).toISOString(),
+      not: $("fNot").value.trim(),
+    };
+    if (!g.kontenjan) { alertHata("Kişi sayısını girin."); return; }
+    $("createBtn").disabled = true;
+    sunucu("oturumOlustur", [g]).then(function (kod) {
+      $("createBtn").disabled = false;
+      sonucGoster(kod, g.sinav);
+      return yukle();
+    }).catch(function (err) { $("createBtn").disabled = false; alertHata(err); });
+  });
+
+  function sonucGoster(kod, sinav) {
+    sonKod = kod;
+    $("result").hidden = false;
+    $("rCode").textContent = kod;
+    $("rSinav").textContent = sinavAdi(sinav);
+    $("rLink").value = baglanti(kod);
+    qrCiz($("rQr"), baglanti(kod), 220);
+  }
+  $("copyBtn").addEventListener("click", function () {
+    var i = $("rLink");
+    i.select();
+    var ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+    $("copyBtn").textContent = ok ? "Kopyalandı" : "Seçildi, Ctrl+C";
+    setTimeout(function () { $("copyBtn").textContent = "Kopyala"; }, 2000);
+  });
+  function tamEkran(kod, sinav) {
+    $("ovTitle").textContent = sinavAdi(sinav);
+    $("ovCode").textContent = kod;
+    $("ovLink").textContent = (veri.sinav_sayfasi || "").replace(/^https?:\/\//, "");
+    qrCiz($("ovQr"), baglanti(kod), 380);
+    $("overlay").hidden = false;
+  }
+  $("fullBtn").addEventListener("click", function () { tamEkran(sonKod, $("fSinav").value); });
+  $("ovClose").addEventListener("click", function () { $("overlay").hidden = true; });
+
+  // ---------- Oturumlar ----------
+  function durumRozet(o) {
+    if (o.durum !== "ACIK") return '<span class="badge b-kapali">Kapalı</span>';
+    if (o.bitis && new Date(o.bitis) < new Date()) return '<span class="badge b-bitti">Süresi bitti</span>';
+    if (o.baslangic && new Date(o.baslangic) > new Date()) return '<span class="badge b-bitti">Başlamadı</span>';
+    return '<span class="badge b-acik">Açık</span>';
+  }
+  function listeCiz() {
+    var tb = $("listBody");
+    if (!veri.oturumlar.length) { tb.innerHTML = '<tr><td colspan="10" class="empty">Henüz oturum yok.</td></tr>'; return; }
+    tb.innerHTML = veri.oturumlar.map(function (o) {
+      return "<tr><td><b>" + esc(o.kod) + "</b></td><td>" + esc(sinavAdi(o.sinav)) + "</td><td>" + esc(o.firma) + "</td><td>" + esc(o.egitim_merkezi) +
+        "</td><td>" + esc(tarih(o.baslangic)) + " - " + esc(saat(o.bitis)) + '</td><td class="num">' + (o.basladi + o.tamamlandi) + " / " + o.kontenjan +
+        '</td><td class="num">' + o.basladi + '</td><td class="num">' + o.tamamlandi + "</td><td>" + durumRozet(o) +
+        '</td><td style="white-space:nowrap"><button class="btn small" data-a="qr" data-k="' + esc(o.kod) + '">Karekod</button> ' +
+        '<button class="btn small" data-a="rapor" data-k="' + esc(o.kod) + '">Rapor</button> ' +
+        '<button class="btn small" data-a="' + (o.durum === "ACIK" ? "kapat" : "ac") + '" data-k="' + esc(o.kod) + '">' + (o.durum === "ACIK" ? "Kapat" : "Aç") + "</button></td></tr>";
+    }).join("");
+  }
+  $("listBody").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-a]");
+    if (!b) return;
+    var kod = b.dataset.k;
+    var o = veri.oturumlar.filter(function (x) { return x.kod === kod; })[0];
+    if (b.dataset.a === "qr") tamEkran(kod, o.sinav);
+    if (b.dataset.a === "rapor") { sekme("rapor"); $("rpSel").value = kod; raporYukle(); }
+    if (b.dataset.a === "kapat" || b.dataset.a === "ac") {
+      b.disabled = true;
+      sunucu("oturumDurumDegistir", [kod, b.dataset.a === "ac"]).then(yukle).catch(alertHata);
+    }
+  });
+
+  // ---------- Rapor ----------
+  function raporSecenekleri() {
+    var sel = $("rpSel");
+    var secili = sel.value;
+    sel.innerHTML = veri.oturumlar.map(function (o) {
+      return '<option value="' + esc(o.kod) + '">' + esc(o.kod) + " · " + esc(sinavAdi(o.sinav)) + (o.firma ? " · " + esc(o.firma) : "") + " · " + esc(tarih(o.baslangic)) + "</option>";
+    }).join("");
+    if (secili) sel.value = secili;
+  }
+  $("rpLoad").addEventListener("click", raporYukle);
+
+  function raporYukle() {
+    var kod = $("rpSel").value;
+    if (!kod) { $("rpBody").innerHTML = '<div class="panel"><div class="empty">Önce bir oturum oluşturun.</div></div>'; return; }
+    yukleniyor(true);
+    sunucu("oturumRaporu", [kod]).then(function (r) { yukleniyor(false); raporCiz(r); }).catch(function (e) { yukleniyor(false); $("rpBody").innerHTML = '<p class="error">' + esc(e) + "</p>"; });
+  }
+
+  function raporCiz(r) {
+    var h = "";
+    h += '<div class="kpis">' +
+      kpi("Katılan", r.katilan) + kpi("Devam eden", r.devam_eden) + kpi("Tamamlayan", r.tamamlayan) +
+      kpi("Ortalama puan", sayi(r.ortalama)) + kpi("Medyan", sayi(r.medyan)) +
+      kpi("En düşük / en yüksek", r.tamamlayan ? sayi(r.en_dusuk) + " / " + sayi(r.en_yuksek) : "-") + "</div>";
+    if (!r.tamamlayan) {
+      h += '<div class="panel"><div class="empty">Bu oturumda henüz sınavını bitiren yok.</div></div>';
+      h += katilimciTablo(r);
+      $("rpBody").innerHTML = h;
+      return;
+    }
+    var max = Math.max.apply(null, r.dagilim.concat([1]));
+    h += '<div class="grid2"><div class="panel"><div class="ph"><h2>Puan dağılımı</h2><span class="hint" style="margin:0">kişi sayısı</span></div><div class="pb"><div class="hist">' +
+      r.dagilim.map(function (v, i) {
+        return '<div class="col"><span class="v">' + (v || "") + '</span><div class="bar" style="height:' + (v / max * 100) + '%"></div><span class="lbl">' + (i * 10) + "-" + (i === 9 ? 100 : i * 10 + 9) + "</span></div>";
+      }).join("") + "</div></div></div>";
+    h += '<div class="panel"><div class="ph"><h2>Bölüm bazında başarı</h2><span class="hint" style="margin:0">doğru cevap oranı</span></div><div class="pb">' +
+      r.bolumler.map(function (b) {
+        return '<div class="hbar"><span title="' + esc(b.ad) + '">' + esc(b.ad) + ' <span class="hint">(' + b.soru + ' soru)</span></span><div class="track"><div class="' + yuzdeSinif(b.yuzde) + '" style="width:' + (b.yuzde || 0) + '%"></div></div><b class="num">' + yuzde(b.yuzde) + "</b></div>";
+      }).join("") + "</div></div></div>";
+
+    var sorular = r.sorular.slice().sort(function (a, b) { return a.dogru_yuzde - b.dogru_yuzde || a.no - b.no; });
+    h += '<div class="panel"><div class="ph"><h2>Soru analizi</h2><span class="hint" style="margin:0">en zordan en kolaya; doğru oranı düşük ve tek bir yanlış şıkta toplanan sorular yeniden gözden geçirilmeye değer</span></div><div class="scroll"><table><thead><tr><th class="num">No</th><th>Bölüm</th><th>Soru</th><th>Doğru oranı</th><th>Doğru</th><th>En sık yanlış</th><th>Seçimler</th></tr></thead><tbody>' +
+      sorular.map(function (q) {
+        var sec = Object.keys(q.secim).sort().map(function (k) { return (k === "-" ? "boş" : k === "?" ? "bilmiyorum" : k) + ":" + q.secim[k]; }).join("  ");
+        return '<tr><td class="num">' + q.no + "</td><td>" + esc(q.bolum) + '</td><td title="' + esc(q.soru) + '">' + esc(q.soru.length > 70 ? q.soru.slice(0, 70) + "…" : q.soru) +
+          '</td><td style="white-space:nowrap"><span class="mini"><i class="' + yuzdeSinif(q.dogru_yuzde) + '" style="width:' + (q.dogru_yuzde || 0) + '%"></i></span>' + yuzde(q.dogru_yuzde) +
+          "</td><td>" + esc(q.dogru_cevap) + "</td><td>" + (q.en_sik_yanlis ? esc(q.en_sik_yanlis) + " (" + q.en_sik_yanlis_sayi + ")" : "") + '</td><td class="hint" style="margin:0">' + esc(sec) + "</td></tr>";
+      }).join("") + "</tbody></table></div></div>";
+    h += katilimciTablo(r);
+    $("rpBody").innerHTML = h;
+  }
+  function kpi(ad, v) { return '<div class="kpi"><span>' + ad + "</span><b>" + v + "</b></div>"; }
+  function katilimciTablo(r) {
+    var durumAd = { basladi: "Devam ediyor", tamamlandi: "Bitirdi" };
+    var k = r.katilimcilar.slice().sort(function (a, b) { return (b.puan == null ? -1 : b.puan) - (a.puan == null ? -1 : a.puan); });
+    return '<div class="panel"><div class="ph"><h2>Katılımcılar</h2><span class="hint" style="margin:0">Ayrıntılı veri: Sonuclar ve Detay sekmeleri</span></div><div class="scroll"><table><thead><tr><th>Ad soyad</th><th>Firma</th><th>Görev</th><th>Başlama</th><th>Durum</th><th class="num">Doğru</th><th class="num">Puan</th></tr></thead><tbody>' +
+      (k.length ? k.map(function (x) {
+        return "<tr><td>" + esc(x.ad + " " + x.soyad) + "</td><td>" + esc(x.firma) + "</td><td>" + esc(x.gorev) + "</td><td>" + esc(tarih(x.baslama)) + "</td><td>" + (durumAd[x.durum] || esc(x.durum)) +
+          '</td><td class="num">' + sayi(x.dogru) + '</td><td class="num">' + sayi(x.puan) + "</td></tr>";
+      }).join("") : '<tr><td colspan="7" class="empty">Henüz katılan yok.</td></tr>') + "</tbody></table></div></div>";
+  }
+
+  $("refresh").addEventListener("click", function () {
+    yukle().then(function () { if (!$("t-rapor").hidden && $("rpSel").value) raporYukle(); });
+  });
+
+  yukle();
+})();
+</script>
+</body>
+</html>

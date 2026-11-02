@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <title>Sınav</title>
-<link rel="stylesheet" href="style.css?v=3">
+<link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
 <header class="bar">
@@ -19,6 +19,20 @@
     <div class="panel narrow"><div class="panelbody"><p id="message" class="message">Bağlantı kontrol ediliyor…</p></div></div>
   </section>
 
+  <!-- Kod girişi -->
+  <section id="vCode" class="view center" hidden>
+    <form class="panel narrow" id="codeForm" novalidate>
+      <div class="panelhead"><h2>Sınava giriş</h2></div>
+      <div class="panelbody">
+        <label class="field"><span class="flabel">Sınav kodu</span>
+          <input id="codeInput" class="codeinput" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ÖRNEK: K7M4QX"></label>
+        <p class="error" id="codeErr" role="alert" hidden></p>
+        <button type="submit" class="primary wide">Devam</button>
+        <p class="hint">Kodu sınav görevlisinden alabilir ya da karekodu okutarak doğrudan girebilirsiniz.</p>
+      </div>
+    </form>
+  </section>
+
   <!-- Giriş -->
   <section id="vStart" class="view" hidden>
     <div class="startgrid">
@@ -26,8 +40,8 @@
         <div class="panelhead"><h2>Sınav bilgileri</h2></div>
         <div class="panelbody">
           <div class="facts">
-            <div><span>Soru sayısı</span><b id="fCount">–</b></div>
-            <div><span>Süre</span><b id="fTime">–</b></div>
+            <div><span>Soru sayısı</span><b id="fCount">-</b></div>
+            <div><span>Süre</span><b id="fTime">-</b></div>
           </div>
           <div id="instructions" class="instructions"></div>
           <p class="author" id="author" hidden></p>
@@ -102,7 +116,7 @@
   </form>
 </dialog>
 
-<script src="config.js?v=3"></script>
-<script src="app.js?v=3"></script>
+<script src="config.js?v=4"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>

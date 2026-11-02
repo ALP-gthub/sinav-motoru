@@ -126,3 +126,6 @@ dialog p{color:var(--muted)}
   .qfoot .ghost{order:3;width:100%}
 }
 .author{margin:16px 0 0;padding-top:12px;border-top:1px solid var(--line);font-size:14px;color:var(--muted)}
+.codeinput{font:700 26px/1 ui-monospace,Consolas,monospace;letter-spacing:6px;text-transform:uppercase;height:56px;text-align:center}
+.codeinput::placeholder{font-size:14px;letter-spacing:1px;font-weight:400}
+button.wide{width:100%;margin-top:14px;height:46px}

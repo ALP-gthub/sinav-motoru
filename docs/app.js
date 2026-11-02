@@ -1,12 +1,15 @@
 // Sınav sayfası. Bu dosyada soru, cevap ya da sınava özel metin yoktur:
-// hepsi, kişiye özel davet kodu doğrulandıktan sonra Google Apps Script'ten gelir.
+// hepsi, oturum kodu ya da kişiye özel kod doğrulandıktan sonra Google Apps Script'ten gelir.
 (function () {
   "use strict";
 
   const $ = (id) => document.getElementById(id);
   const API = window.SINAV_API;
-  const kod = new URLSearchParams(location.search).get("k") || "";
-  const yerelAnahtar = "sinav:" + kod;
+  const params = new URLSearchParams(location.search);
+  let kod = (params.get("k") || "").trim(); // kişisel kod
+  let oturum = (params.get("o") || "").trim().toUpperCase(); // ortak oturum kodu
+  let yerelAnahtar = "sinav:" + kod;
+  const OTURUM_DESENI = /^[ACDEFGHJKMNPQRTUVWXY34679]{6}$/;
 
   const HATALAR = {
     gecersiz_kod: "Bu bağlantı geçerli değil. Lütfen size gönderilen bağlantıyı eksiksiz açın.",
@@ -17,6 +20,11 @@
     eksik_bilgi: "Lütfen adınızı ve soyadınızı yazın.",
     kvkk_onayi_yok: "Devam etmek için aydınlatma metnini onaylamanız gerekiyor.",
     ag: "Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.",
+    gecersiz_oturum: "Bu sınav kodu bulunamadı. Kodu kontrol edip tekrar deneyin.",
+    oturum_kapali: "Bu sınav oturumu kapatılmış. Lütfen sınav görevlisine haber verin.",
+    oturum_baslamadi: "Bu sınav oturumu henüz başlamadı. Lütfen belirtilen saatte tekrar deneyin.",
+    oturum_bitti: "Bu sınav oturumuna giriş süresi sona erdi.",
+    kontenjan_dolu: "Bu sınav oturumunun kişi sayısı dolmuş. Lütfen sınav görevlisine haber verin.",
   };
 
   let sinav = null;
@@ -31,7 +39,7 @@
   // ---------- Sunucu ----------
   async function cagir(islem, veri, deneme) {
     try {
-      const r = await fetch(API, { method: "POST", body: JSON.stringify(Object.assign({ islem, kod }, veri || {})) });
+      const r = await fetch(API, { method: "POST", body: JSON.stringify(Object.assign({ islem, kod, oturum }, veri || {})) });
       return await r.json();
     } catch (e) {
       if ((deneme || 0) < 2) {
@@ -44,7 +52,7 @@
 
   // ---------- Görünümler ----------
   function goster(id) {
-    ["vMessage", "vStart", "vExam", "vDone"].forEach((v) => ($(v).hidden = v !== id));
+    ["vMessage", "vCode", "vStart", "vExam", "vDone"].forEach((v) => ($(v).hidden = v !== id));
     window.scrollTo(0, 0);
   }
   function mesaj(metin) {
@@ -85,20 +93,62 @@
       });
   }
 
+  // ---------- Kod girişi ----------
+  function kodSor(hata) {
+    $("codeErr").textContent = hata || "";
+    $("codeErr").hidden = !hata;
+    goster("vCode");
+    $("codeInput").focus();
+  }
+  $("codeForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const v = $("codeInput").value.trim().toUpperCase().replace(/\s+/g, "");
+    location.search = "?o=" + encodeURIComponent(v);
+  });
+
   // ---------- Giriş ----------
   async function baslangic() {
     if (!API || API.indexOf("script.google.com") < 0 && API.indexOf("localhost") < 0) {
       mesaj("Sınav sayfası henüz yapılandırılmamış.");
       return;
     }
-    if (!/^[a-f0-9]{16,32}$/.test(kod)) {
+    // Ortak kodla gelen biri bu tarayıcıda daha önce başladıysa kendi kişisel koduyla devam eder.
+    let kodDepodan = false;
+    if (!kod && OTURUM_DESENI.test(oturum)) {
+      kodDepodan = true;
+      try {
+        kod = localStorage.getItem("oturum:" + oturum) || "";
+      } catch (e) {
+        kod = "";
+      }
+      yerelAnahtar = "sinav:" + kod;
+    }
+    let b = null;
+    if (/^[a-f0-9]{16,32}$/.test(kod)) {
+      b = await cagir("bilgi");
+      // Ortak bilgisayarda: önceki kişinin bitmiş sınavı yeni girişi engellemez.
+      if (!b.ok && kodDepodan && b.hata === "tamamlandi") b.hata = "gecersiz_kod";
+      if (!b.ok && !(oturum && b.hata === "gecersiz_kod")) {
+        mesaj(hataMetni(b.hata));
+        return;
+      }
+      if (!b.ok) b = null;
+    } else if (params.get("k")) {
       mesaj(HATALAR.gecersiz_kod);
       return;
     }
-    const b = await cagir("bilgi");
-    if (!b.ok) {
-      mesaj(hataMetni(b.hata));
-      return;
+    if (!b) {
+      kod = "";
+      if (!OTURUM_DESENI.test(oturum)) {
+        kodSor(oturum ? HATALAR.gecersiz_oturum : "");
+        return;
+      }
+      b = await cagir("oturum_bilgi");
+      if (!b.ok) {
+        if (b.hata === "gecersiz_oturum") return kodSor(HATALAR.gecersiz_oturum);
+        mesaj(hataMetni(b.hata));
+        return;
+      }
     }
     sinav = b.sinav;
     $("examTitle").textContent = sinav.baslik;
@@ -148,14 +198,30 @@
     }
     $("startBtn").disabled = true;
     $("startBtn").textContent = "Sorular yükleniyor…";
-    const r = await cagir("basla", { katilimci: k });
+    const r = kod ? await cagir("basla", { katilimci: k }) : await cagir("katil", { katilimci: k });
     $("startBtn").disabled = false;
     $("startBtn").textContent = "Sınava başla";
     if (!r.ok) {
-      if (["tamamlandi", "sure_bitti", "sinav_kapali", "gecersiz_kod"].includes(r.hata)) return mesaj(hataMetni(r.hata));
+      if (["tamamlandi", "sure_bitti", "sinav_kapali", "gecersiz_kod", "gecersiz_oturum", "oturum_kapali", "oturum_bitti", "kontenjan_dolu"].includes(r.hata))
+        return mesaj(hataMetni(r.hata));
       return hataGoster(r.hata);
     }
     sorular = r.sorular;
+    if (!kod && r.kod) {
+      // Ortak kodla girildi: kişisel kod bu tarayıcıda saklanır ve adres ona çevrilir.
+      kod = r.kod;
+      yerelAnahtar = "sinav:" + kod;
+      try {
+        localStorage.setItem("oturum:" + oturum, kod);
+      } catch (e) {
+        /* tarayıcı belleği kapalı; adres çubuğundaki kişisel kod yeterli */
+      }
+      try {
+        history.replaceState(null, "", location.pathname + "?k=" + kod + "&o=" + oturum);
+      } catch (e) {
+        /* yok say */
+      }
+    }
     // Sunucudaki ara kayıt ile bu tarayıcıdaki kayıttan yenisi kullanılır.
     let yerel = {};
     try {
@@ -345,9 +411,12 @@
     if (r.ok) {
       try {
         localStorage.removeItem(yerelAnahtar);
+        if (oturum) localStorage.removeItem("oturum:" + oturum);
       } catch (e) {
         /* yok say */
       }
+      // Ortak bilgisayarda sonraki katılımcı sayfayı yenileyince yeni giriş ekranını görür.
+      if (oturum) history.replaceState(null, "", location.pathname + "?o=" + oturum);
       clearInterval(sayac);
       goster("vDone");
     } else {

@@ -136,6 +136,11 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
       <span class="flabel" style="margin:0">Oturum</span>
       <select id="rpSel" style="max-width:520px"></select>
       <button class="btn" id="rpLoad">Göster</button>
+      <span class="spacer" style="flex:1"></span>
+      <button class="btn primary" id="rpFile">Rapor dosyası oluştur</button>
+    </div>
+    <div class="pb" id="rpFileBox" hidden style="padding-top:0">
+      <p class="hint" id="rpFileMsg" style="margin:0"></p>
     </div></div>
     <div id="rpBody"></div>
   </section>
@@ -329,6 +334,20 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
     if (secili) sel.value = secili;
   }
   $("rpLoad").addEventListener("click", raporYukle);
+  $("rpFile").addEventListener("click", function () {
+    var kod = $("rpSel").value;
+    if (!kod) return;
+    $("rpFile").disabled = true;
+    $("rpFileBox").hidden = false;
+    $("rpFileMsg").textContent = "Rapor dosyası hazırlanıyor…";
+    sunucu("raporDosyasiOlustur", [kod]).then(function (r) {
+      $("rpFile").disabled = false;
+      $("rpFileMsg").innerHTML = 'Rapor hazır: <a href="' + esc(r.url) + '" target="_blank">' + esc(r.ad) + "</a>. Dosyayı açıp <b>Dosya &gt; İndir</b> ile PDF ya da Excel olarak alabilir, <b>Paylaş</b> ile firmaya gönderebilirsiniz. Dosyada soru metinleri ve cevap anahtarı yer almaz.";
+    }).catch(function (e) {
+      $("rpFile").disabled = false;
+      $("rpFileMsg").textContent = "Rapor oluşturulamadı: " + e;
+    });
+  });
 
   function raporYukle() {
     var kod = $("rpSel").value;

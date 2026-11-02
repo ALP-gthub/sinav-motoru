@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <title>Sınav</title>
-<link rel="stylesheet" href="style.css?v=4">
+<link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
 <header class="bar">
@@ -17,6 +17,16 @@
   <!-- Yükleniyor / hata -->
   <section id="vMessage" class="view center">
     <div class="panel narrow"><div class="panelbody"><p id="message" class="message">Bağlantı kontrol ediliyor…</p></div></div>
+  </section>
+
+  <!-- Projeksiyon: yalnızca karekod ve oturum kodu -->
+  <section id="vQr" class="view qrview" hidden>
+    <p class="qrsub" id="qrSub"></p>
+    <div id="qrBox" class="qrbox"></div>
+    <p class="qrhint">Telefonunuzun kamerasıyla karekodu okutun ya da aşağıdaki adrese gidip kodu girin</p>
+    <div class="qrcode" id="qrCode"></div>
+    <p class="qraddr" id="qrAddr"></p>
+    <button type="button" class="secondary" id="qrFull">Tam ekran</button>
   </section>
 
   <!-- Kod girişi -->
@@ -116,7 +126,8 @@
   </form>
 </dialog>
 
-<script src="config.js?v=4"></script>
-<script src="app.js?v=4"></script>
+<script src="vendor/qrcode.min.js"></script>
+<script src="config.js?v=5"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>

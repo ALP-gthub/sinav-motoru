@@ -62,10 +62,12 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .scroll{max-height:360px;overflow:auto}
 .empty{color:var(--muted);text-align:center;padding:24px}
 .overlay{position:fixed;inset:0;background:#fff;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center}
-.overlay .code{font-size:72px}
-.overlay .qr img,.overlay .qr canvas{width:380px;height:380px}
+.overlay .code{font-size:clamp(32px,9vh,72px)}
+.overlay .qr{margin:4px 0}
+.overlay .qr img,.overlay .qr canvas{width:var(--qr,300px);height:var(--qr,300px)}
+.ovbtns{position:absolute;top:12px;right:12px;display:flex;gap:8px}
 .overlay p{margin:0;color:var(--muted);font-size:18px}
-.overlay h1{margin:0;font-size:24px}
+.overlay h1{margin:0;font-size:20px}
 .close{position:absolute;top:12px;right:12px}
 .loading{position:fixed;inset:0;background:rgba(243,245,247,.6);display:flex;align-items:center;justify-content:center;z-index:30;font-weight:600}
 </style>
@@ -140,7 +142,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 </main>
 
 <div class="overlay" id="overlay" hidden>
-  <button class="btn close" id="ovClose">Kapat</button>
+  <div class="ovbtns"><button class="btn" id="ovTab">Projeksiyon için yeni sekmede aç</button><button class="btn" id="ovClose">Kapat</button></div>
   <h1 id="ovTitle"></h1>
   <div class="qr" id="ovQr"></div>
   <p>Karekodu okutun ya da adrese gidip kodu girin</p>
@@ -271,11 +273,19 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
     $("ovTitle").textContent = sinavAdi(sinav);
     $("ovCode").textContent = kod;
     $("ovLink").textContent = (veri.sinav_sayfasi || "").replace(/^https?:\/\//, "");
-    qrCiz($("ovQr"), baglanti(kod), 380);
+    var boyut = Math.max(160, Math.min(window.innerWidth - 80, window.innerHeight - 270, 420));
+    $("overlay").style.setProperty("--qr", boyut + "px");
+    qrCiz($("ovQr"), baglanti(kod), boyut);
+    ovKod = kod;
     $("overlay").hidden = false;
   }
   $("fullBtn").addEventListener("click", function () { tamEkran(sonKod, $("fSinav").value); });
   $("ovClose").addEventListener("click", function () { $("overlay").hidden = true; });
+  var ovKod = "";
+  // Projeksiyon görünümü: sınav sayfasında yalnızca karekodu ve kodu gösteren, tam ekran yapılabilen sekme.
+  $("ovTab").addEventListener("click", function () {
+    window.open((veri.sinav_sayfasi || "").replace(/\/?$/, "/") + "?qr=" + ovKod, "_blank");
+  });
 
   // ---------- Oturumlar ----------
   function durumRozet(o) {

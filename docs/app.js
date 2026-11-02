@@ -52,7 +52,7 @@
 
   // ---------- Görünümler ----------
   function goster(id) {
-    ["vMessage", "vCode", "vStart", "vExam", "vDone"].forEach((v) => ($(v).hidden = v !== id));
+    ["vMessage", "vQr", "vCode", "vStart", "vExam", "vDone"].forEach((v) => ($(v).hidden = v !== id));
     window.scrollTo(0, 0);
   }
   function mesaj(metin) {
@@ -93,6 +93,41 @@
       });
   }
 
+  // ---------- Projeksiyon görünümü ----------
+  async function projeksiyon(o) {
+    if (!OTURUM_DESENI.test(o)) return mesaj(HATALAR.gecersiz_oturum);
+    oturum = o;
+    const b = await cagir("oturum_bilgi");
+    if (!b.ok) return mesaj(hataMetni(b.hata));
+    $("examTitle").textContent = b.sinav.baslik;
+    $("examSub").textContent = b.sinav.alt_baslik;
+    document.title = b.sinav.baslik;
+    const adres = location.origin + location.pathname;
+    $("qrSub").textContent = b.sinav.soru_sayisi + " soru, " + b.sinav.sure_dk + " dakika";
+    $("qrCode").textContent = o;
+    $("qrAddr").textContent = adres.replace(/^https?:\/\//, "");
+    goster("vQr");
+    const ciz = () => {
+      const boyut = Math.max(180, Math.min(window.innerWidth - 48, window.innerHeight - 330, 560));
+      const kutu = $("qrBox");
+      kutu.textContent = "";
+      kutu.style.width = kutu.style.height = boyut + "px";
+      if (typeof QRCode === "undefined") return;
+      new QRCode(kutu, { text: adres + "?o=" + o, width: boyut, height: boyut, correctLevel: QRCode.CorrectLevel.M });
+    };
+    ciz();
+    let z;
+    window.addEventListener("resize", () => {
+      clearTimeout(z);
+      z = setTimeout(ciz, 150);
+    });
+    $("qrFull").addEventListener("click", () => {
+      const el = document.documentElement;
+      if (document.fullscreenElement) document.exitFullscreen();
+      else if (el.requestFullscreen) el.requestFullscreen();
+    });
+  }
+
   // ---------- Kod girişi ----------
   function kodSor(hata) {
     $("codeErr").textContent = hata || "";
@@ -112,6 +147,8 @@
       mesaj("Sınav sayfası henüz yapılandırılmamış.");
       return;
     }
+    const qr = (params.get("qr") || "").trim().toUpperCase();
+    if (qr) return projeksiyon(qr);
     // Ortak kodla gelen biri bu tarayıcıda daha önce başladıysa kendi kişisel koduyla devam eder.
     let kodDepodan = false;
     if (!kod && OTURUM_DESENI.test(oturum)) {

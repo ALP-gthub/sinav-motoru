@@ -71,6 +71,7 @@ function bilgi_(kod) {
     sinav: {
       baslik: s.baslik,
       alt_baslik: s.alt_baslik || "",
+      hazirlayan: s.hazirlayan || "",
       sure_dk: Number(s.sure_dk),
       soru_sayisi: sorular_(s.kod).length,
       aciklama: s.aciklama || "",
@@ -516,6 +517,7 @@ var BASLIKLAR = {
     "bilmiyorum",
     "sik_karistir",
     "gorsel_klasor_id",
+    "hazirlayan",
   ],
   Sorular: ["sinav", "no", "bolum", "grup_notu", "grup_gorsel", "soru", "gorsel", "tur", "A", "B", "C", "D", "E", "dogru", "tolerans", "birim"],
   Davetler: [

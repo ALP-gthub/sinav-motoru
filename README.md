@@ -24,7 +24,7 @@ Gizlilik:
 ## E-Tablo sekmeleri
 
 - **Ayarlar:** `sinav_sayfasi` satırında bu sayfanın adresi.
-- **Sinavlar:** Her sınav bir satır. `kod`, `baslik`, `alt_baslik`, `sure_dk`, `aktif` (EVET/HAYIR), `aciklama` (katılımcıya gösterilen talimatlar; numaralı satırlar liste olur), `kvkk_metni`, `firma_sor`, `gorev_sor`, `bilmiyorum` (her soruya "Bilmiyorum" seçeneği), `sik_karistir`, `gorsel_klasor_id`.
+- **Sinavlar:** Her sınav bir satır. `kod`, `baslik`, `alt_baslik`, `sure_dk`, `aktif` (EVET/HAYIR), `aciklama` (katılımcıya gösterilen talimatlar; numaralı satırlar liste olur), `kvkk_metni`, `firma_sor`, `gorev_sor`, `bilmiyorum` (her soruya "Bilmiyorum" seçeneği), `sik_karistir`, `gorsel_klasor_id`, `hazirlayan` (sınav bilgilerinin altında gösterilir).
 - **Sorular:** Her soru bir satır. `sinav`, `no`, `bolum`, `grup_notu` ve `grup_gorsel` (birden fazla soruda ortak şekil), `soru`, `gorsel`, `tur` (`coktan` ya da `sayi`), `A` … `E`, `dogru`, `tolerans` ve `birim` (sayı girişli sorular için).
 - **Davetler:** Menüden oluşturulan kişiye özel bağlantılar ve her katılımcının durumu.
 - **Sonuclar:** Her katılımcı için doğru, yanlış, boş, puan ve bölüm bazında sonuç.

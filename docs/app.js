@@ -107,6 +107,10 @@
     $("fCount").textContent = sinav.soru_sayisi;
     $("fTime").textContent = sinav.sure_dk + " dakika";
     metinYaz($("instructions"), sinav.aciklama);
+    if (sinav.hazirlayan) {
+      $("author").textContent = "Hazırlayan: " + sinav.hazirlayan;
+      $("author").hidden = false;
+    }
     $("wFirma").hidden = !sinav.firma_sor;
     $("wGorev").hidden = !sinav.gorev_sor;
     if (sinav.kvkk) {

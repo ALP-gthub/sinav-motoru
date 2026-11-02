@@ -125,3 +125,4 @@ dialog p{color:var(--muted)}
   .qfoot{flex-wrap:wrap}
   .qfoot .ghost{order:3;width:100%}
 }
+.author{margin:16px 0 0;padding-top:12px;border-top:1px solid var(--line);font-size:14px;color:var(--muted)}

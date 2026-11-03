@@ -1644,6 +1644,23 @@ function havuzKontrolIc_(o) {
     if (!(onceki && onceki.cozum && onceki.cozum.metinIzi === cz.metinIzi && !o.hepsi)) degisenBelge[b.id] = true;
   });
 
+  // Sistemin kendi yeniden yazdığı şekiller (JPEG her eklemede yeniden sıkıştırılır): asıl şekille eşle.
+  var es = d.sekilEs || {};
+  var takma = function (ad) { return es[ad] || ad; };
+  var md5Ad = function (ad) { return String(ad).replace(/\.[a-z]+$/, ""); };
+  Object.keys(okunan).forEach(function (bid) {
+    okunan[bid].sorular.forEach(function (s) {
+      var k = s.kayit;
+      var adlar = sekilAdlari_(k).map(takma);
+      k.gorsel = adlar.join(",");
+      s.gorselMd5 = adlar.map(md5Ad);
+      if (k.grup_gorsel) {
+        k.grup_gorsel = takma(k.grup_gorsel);
+        s.grupGorselMd5 = md5Ad(k.grup_gorsel);
+      }
+    });
+  });
+
   // Yeni sorulara kod ver (YENİ başlığı).
   var enBuyuk = {};
   var say = function (id) {
@@ -2081,6 +2098,7 @@ function havuzKarari(id, surum, karar) {
     if (karar === "geri_al") {
       if (!s) throw new Error("Soru belgede bulunamadı; geri alınamıyor.");
       soruBlogunuYenidenYaz_(kr.belge, s, onceki);
+      sekilEsle_(d, kr.belge, onceki.kayit, false);
       return havuzKontrolIc_({});
     }
     if (karar === "yeni_surum") {
@@ -2089,7 +2107,8 @@ function havuzKarari(id, surum, karar) {
       Object.keys(d.sorular).forEach(function (k2) {
         if (k2.indexOf(id + "@") === 0) yeni = Math.max(yeni, Number(d.sorular[k2].kayit.surum) + 1);
       });
-      eskiSurumeYaz_(b, onceki);
+      var eskiId = eskiSurumeYaz_(b, onceki);
+      sekilEsle_(d, eskiId, onceki.kayit, true);
       // Bölüm belgesindeki başlığı yeni sürüm ve onaylı olarak değiştir.
       var doc = DocumentApp.openById(kr.belge);
       var body = doc.getBody();
@@ -2145,6 +2164,26 @@ function eskiSurumeYaz_(b, onceki) {
   l = l.concat(soruOgeleri_(q, { notlar: q.notlar || [] }));
   ogeleriYaz_(doc.getBody(), l, havuzSekilKlasoru_());
   doc.saveAndClose();
+  return doc.getId();
+}
+
+/**
+ * Sistem bir soruyu şekilleriyle yeniden yazdığında, belgeden okunan şekil kimliklerini asıl kimliklerle eşler.
+ * Yalnızca sistemin kendi yazdığı blok için çağrılır; kullanıcının değiştirdiği şekil eşlenmez.
+ */
+function sekilEsle_(d, belgeId, q, eski) {
+  var cz = havuzBelgesiniCoz_(belgeOgeleriniOku_(belgeId), { konu: q.konu, bolum: "", belgeId: belgeId, belgeAdi: "", eski: eski });
+  var s = null;
+  cz.sorular.forEach(function (x) {
+    if (x.kayit.soru_id === q.soru_id && Number(x.kayit.surum) === Number(q.surum)) s = x;
+  });
+  if (!s) return;
+  d.sekilEs = d.sekilEs || {};
+  var okunan = sekilAdlari_(s.kayit);
+  sekilAdlari_(q).forEach(function (ad, i) {
+    if (okunan[i] && okunan[i] !== ad) d.sekilEs[okunan[i]] = ad;
+  });
+  if (q.grup_gorsel && s.kayit.grup_gorsel && s.kayit.grup_gorsel !== q.grup_gorsel) d.sekilEs[s.kayit.grup_gorsel] = q.grup_gorsel;
 }
 
 /** Belgedeki bir soru bloğunu son onaylı haliyle yeniden yazar (geri al). */

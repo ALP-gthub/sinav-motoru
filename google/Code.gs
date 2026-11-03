@@ -2049,6 +2049,36 @@ function formOlustur(kod) {
   return yeni;
 }
 
+/**
+ * Dışarıda hazırlanmış bir formu (ör. elle hazırlanmış kâğıt kitapçık) olduğu gibi kaydeder.
+ * sira: soru kimlikleri kitapçık sırasıyla; siklar: {soru_id: "CADB"} (kitapçıktaki a, b, c, d'nin havuzdaki harfleri).
+ * Sınavdaki soruların tamamı tam bir kez bulunmalı, şıklar sorunun kendi şıklarının bir sıralaması olmalı.
+ */
+function formKaydet_(kod, harf, sira, siklar, not) {
+  var s = sinavBul_(kod);
+  if (!s || String(s.durum).toUpperCase() !== "ONAYLI") throw new Error("Yalnızca onaylı sınavlara form eklenebilir.");
+  harf = String(harf).toUpperCase();
+  if (formBul_(kod, harf)) throw new Error("Bu form zaten var: " + kod + " Form " + harf);
+  var sorular = sinavSorulari_(kod);
+  var idx = {};
+  sorular.forEach(function (q) { idx[q.id] = q; });
+  if (sira.length !== sorular.length) throw new Error("Soru sayısı tutmuyor: " + sira.length + " / " + sorular.length);
+  var gorulen = {};
+  sira.forEach(function (id) {
+    if (!idx[id]) throw new Error("Sınavda olmayan soru: " + id);
+    if (gorulen[id]) throw new Error("Tekrarlanan soru: " + id);
+    gorulen[id] = true;
+    var q = idx[id];
+    var asil = varsayilanSiklar_(q).split("").sort().join("");
+    var verilen = String(siklar[id] || "");
+    if (q.tur !== "sayi" && verilen.split("").sort().join("") !== asil) throw new Error("Şıklar hatalı: " + id + " " + verilen);
+  });
+  var temiz = {};
+  sira.forEach(function (id) { temiz[id] = idx[id].tur === "sayi" ? varsayilanSiklar_(idx[id]) : String(siklar[id]); });
+  satirEkle_("Formlar", { sinav: kod, form: harf, sira: JSON.stringify(sira), siklar: JSON.stringify(temiz), olusturma: new Date() });
+  return harf;
+}
+
 /** Saf fonksiyon: bölüm sırası korunur, bölüm içinde birimler (tek soru ya da grup) karışır. */
 function formSirasiUret_(sorular, rnd) {
   var bolumler = [];

@@ -455,9 +455,47 @@ function altKlasor_(ust, ad) {
 }
 
 /** Sınavın Drive klasörü: ana tablonun bulunduğu klasör / Sınavlar / "<kod> - <başlık>". */
+/** Kodlar sekmesinde klasör adı (yoksa tam ad, o da yoksa kod). */
+function kodKlasorAdi_(tur, kod) {
+  var bulunan = String(kod);
+  tablo_("Kodlar").kayitlar.forEach(function (r) {
+    var k = r.kayit;
+    if (String(k.tur).trim().toUpperCase() === tur && String(k.kod).trim().toUpperCase() === String(kod).trim().toUpperCase()) {
+      bulunan = String(k.klasor_adi || "").trim() || String(k.ad || "").trim() || bulunan;
+    }
+  });
+  return bulunan.replace(/[\\/]/g, "-");
+}
+
+/** Sınav klasörünün adı: "ELK-001 - Endüstriyel Elektrik Teorik Sınavı_1126" (kodun son iki parçası, başlık, açıldığı ay ve yıl). */
+function sinavKlasorAdi_(s, tarih) {
+  var p = String(s.kod).split("-");
+  var kisa = p.slice(-2).join("-");
+  var aayy = Utilities.formatDate(tarih || new Date(), SpreadsheetApp.getActive().getSpreadsheetTimeZone() || "Europe/Istanbul", "MMyy");
+  return kisa + " - " + String(s.baslik || "").trim() + "_" + aayy;
+}
+
+/**
+ * Sınavın Drive klasörü: Sınavlar / <merkez> / <firma> / <ELK-001 - başlık_AAYY>.
+ * Klasör kimliği Sinavlar sekmesinde tutulur; klasör elle yeniden adlandırılsa ya da taşınsa da bulunur.
+ */
 function sinavKlasoru_(s) {
+  var id = String(s.klasor_id || "").trim();
+  if (id) {
+    try {
+      var k = DriveApp.getFolderById(id);
+      if (!k.isTrashed()) return k;
+    } catch (e) {}
+  }
   var sistem = DriveApp.getFileById(SpreadsheetApp.getActive().getId()).getParents().next();
-  return altKlasor_(altKlasor_(sistem, "Sınavlar"), String(s.kod) + " - " + String(s.baslik || "").trim());
+  var firma = altKlasor_(altKlasor_(altKlasor_(sistem, "Sınavlar"), kodKlasorAdi_("MERKEZ", s.merkez)), kodKlasorAdi_("FIRMA", s.firma));
+  var yeni = altKlasor_(firma, sinavKlasorAdi_(s));
+  var t = tablo_("Sinavlar");
+  t.kayitlar.forEach(function (r) {
+    if (String(r.kayit.kod).trim() === String(s.kod).trim()) satirGuncelle_("Sinavlar", r.satir, { klasor_id: yeni.getId() });
+  });
+  s.klasor_id = yeni.getId();
+  return yeni;
 }
 
 /** Bir formun sorularını kitapçık sırasıyla verir; şıklar formdaki yerleşimle yeniden harflenir. */
@@ -1084,9 +1122,9 @@ function onOpen() {
 
 var BASLIKLAR = {
   Ayarlar: ["anahtar", "deger"],
-  Kodlar: ["tur", "kod", "ad"],
+  Kodlar: ["tur", "kod", "ad", "klasor_adi"],
   Havuz: ["soru_id", "surum", "durum", "konu", "bolum", "zorluk", "grup", "grup_notu", "grup_gorsel", "soru", "gorsel", "tur", "A", "B", "C", "D", "E", "dogru", "tolerans", "birim", "gerekce", "kaynak", "olusturma", "onay_tarihi", "not"],
-  Sinavlar: ["kod", "merkez", "firma", "konu", "calisma", "baslik", "alt_baslik", "sure_dk", "durum", "aktif", "aciklama", "kvkk_metni", "firma_sor", "gorev_sor", "bilmiyorum", "sik_karistir", "gorsel_klasor_id", "hazirlayan", "olusturma", "onay_tarihi", "not"],
+  Sinavlar: ["kod", "merkez", "firma", "konu", "calisma", "baslik", "alt_baslik", "sure_dk", "durum", "aktif", "aciklama", "kvkk_metni", "firma_sor", "gorev_sor", "bilmiyorum", "sik_karistir", "gorsel_klasor_id", "hazirlayan", "klasor_id", "olusturma", "onay_tarihi", "not"],
   Sinav_Sorulari: ["sinav", "sira", "soru_id", "surum"],
   Formlar: ["sinav", "form", "sira", "siklar", "olusturma"],
   Kullanim: ["sinav", "form", "tarih", "katilimci_sayisi", "tur", "not"],

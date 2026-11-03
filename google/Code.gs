@@ -442,6 +442,193 @@ function grupBasligi_(nolar, sekilli) {
   return "Soru " + n.slice(0, -1).join(", ") + " ve " + n[n.length - 1] + " için " + ne;
 }
 
+// ---------------------------------------------------------------------------
+// Sınav kitapçığı ve cevap anahtarı (Drive: Sınav Sistemi/Sınavlar/<kod - başlık>/)
+// ---------------------------------------------------------------------------
+
+function altKlasor_(ust, ad) {
+  var it = ust.getFoldersByName(ad);
+  return it.hasNext() ? it.next() : ust.createFolder(ad);
+}
+
+/** Sınavın Drive klasörü: ana tablonun bulunduğu klasör / Sınavlar / "<kod> - <başlık>". */
+function sinavKlasoru_(s) {
+  var sistem = DriveApp.getFileById(SpreadsheetApp.getActive().getId()).getParents().next();
+  return altKlasor_(altKlasor_(sistem, "Sınavlar"), String(s.kod) + " - " + String(s.baslik || "").trim());
+}
+
+/** Bir formun sorularını kitapçık sırasıyla verir; şıklar formdaki yerleşimle yeniden harflenir. */
+function kitapcikSorulari_(s, form) {
+  var fqs = formSorulari_(s.kod, form);
+  var grupNo = {};
+  fqs.forEach(function (fq) {
+    var g = String(fq.q.grup || "").trim();
+    if (g) (grupNo[g] = grupNo[g] || []).push(fq.no);
+  });
+  var harf = ["A", "B", "C", "D", "E"];
+  return fqs.map(function (fq) {
+    var q = fq.q;
+    var g = String(q.grup || "").trim();
+    var siklar = [];
+    var dogru = "";
+    if (q.tur !== "sayi") {
+      fq.siklar.split("").forEach(function (asil, i) {
+        siklar.push({ harf: harf[i], metin: String(q[asil]) });
+        if (asil === String(q.dogru).trim().toUpperCase()) dogru = harf[i];
+      });
+    } else {
+      dogru = String(q.dogru) + (q.birim ? " " + q.birim : "") + (q.tolerans ? " (±" + q.tolerans + ")" : "");
+    }
+    return {
+      no: fq.no, id: q.id, surum: q.surum, bolum: String(q.bolum || ""), grup: g,
+      grup_ilk: g ? grupNo[g][0] === fq.no : false,
+      grup_baslik: g && (q.grup_notu || q.grup_gorsel) ? grupBasligi_(grupNo[g], !!q.grup_gorsel) : "",
+      grup_notu: String(q.grup_notu || ""), grup_gorsel: String(q.grup_gorsel || "").trim(),
+      soru: String(q.soru), gorseller: sekilAdlari_(q), tur: q.tur === "sayi" ? "sayi" : "coktan",
+      birim: String(q.birim || ""), siklar: siklar, dogru: dogru,
+    };
+  });
+}
+
+function belgeParagraf_(body, metin, o) {
+  o = o || {};
+  var p = body.appendParagraph(metin);
+  if (o.baslik) p.setHeading(o.baslik); else p.setHeading(DocumentApp.ParagraphHeading.NORMAL);
+  if (o.ortala) p.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+  p.setSpacingBefore(o.once || 0).setSpacingAfter(o.sonra === undefined ? 4 : o.sonra);
+  if (o.girinti) p.setIndentStart(o.girinti).setIndentFirstLine(o.girinti);
+  var t = p.editAsText();
+  if (metin) {
+    t.setBold(!!o.kalin).setItalic(!!o.italik).setFontSize(o.boy || 11).setForegroundColor(o.renk || "#000000");
+    if (o.zemin) t.setBackgroundColor(o.zemin);
+  }
+  return p;
+}
+
+function belgeyeGorsel_(body, klasor, ad, genislik) {
+  var it = klasor ? klasor.getFilesByName(ad) : null;
+  if (!it || !it.hasNext()) {
+    belgeParagraf_(body, "Şekil bulunamadı: " + ad, { renk: "#b42318" });
+    return;
+  }
+  var p = body.appendParagraph("");
+  p.setAlignment(DocumentApp.HorizontalAlignment.CENTER).setSpacingAfter(6);
+  var im = p.appendInlineImage(it.next().getBlob());
+  var w = im.getWidth(), h = im.getHeight();
+  if (w > genislik) im.setWidth(genislik).setHeight(Math.round((h * genislik) / w));
+}
+
+/**
+ * Bir formun kitapçığını ve cevap anahtarını Google Dokümanı olarak sınavın klasörüne yazar.
+ * Kitapçıkta soru kodu ve doğru cevap yoktur. Aynı adda belge varsa üzerine yazmaz.
+ */
+function kitapcikOlustur_(kod, form) {
+  var s = sinavBul_(kod);
+  if (!s) throw new Error("Sınav bulunamadı: " + kod);
+  form = String(form || "A").toUpperCase();
+  if (!formBul_(kod, form)) throw new Error("Form bulunamadı: " + form);
+  var klasor = sinavKlasoru_(s);
+  var adK = "Form " + form + " - Kitapçık";
+  var adC = "Form " + form + " - Cevap Anahtarı";
+  if (klasor.getFilesByName(adK).hasNext() || klasor.getFilesByName(adC).hasNext()) throw new Error("Bu formun belgeleri zaten var: " + kod + " Form " + form);
+  var sorular = kitapcikSorulari_(s, form);
+  var gk = havuzGorselKlasoru_();
+  var gKlasor = gk ? DriveApp.getFolderById(gk) : null;
+  var merkez = String(s.alt_baslik || "");
+  var ust = function (body, ikinci) {
+    if (String(s.calisma || "").trim()) belgeParagraf_(body, String(s.calisma).trim(), { kalin: true, boy: 13 });
+    belgeParagraf_(body, String(s.baslik) + (ikinci ? " " + ikinci : ""), { kalin: true, boy: 15, sonra: 6 });
+    if (merkez) belgeParagraf_(body, merkez, { boy: 11 });
+    belgeParagraf_(body, "Sınav kodu: " + kod + "   Form " + form + "   Soru sayısı: " + sorular.length + "   Süre: " + Number(s.sure_dk) + " dakika", { boy: 10, renk: "#444444" });
+    if (String(s.hazirlayan || "").trim()) belgeParagraf_(body, "Hazırlayan: " + String(s.hazirlayan).trim(), { boy: 10, renk: "#444444" });
+  };
+
+  // Kitapçık
+  var dk = DocumentApp.create(adK);
+  var b = dk.getBody();
+  b.setMarginTop(50).setMarginBottom(50).setMarginLeft(60).setMarginRight(60);
+  var genislik = b.getPageWidth() - 120;
+  b.getParagraphs()[0].setText("");
+  ust(b, "");
+  var sonBolum = null;
+  sorular.forEach(function (q) {
+    if (q.bolum !== sonBolum) {
+      belgeParagraf_(b, q.bolum, { kalin: true, boy: 12, zemin: "#fff2a8", once: 16, sonra: 8 });
+      sonBolum = q.bolum;
+    }
+    if (q.grup_ilk && (q.grup_baslik || q.grup_notu || q.grup_gorsel)) {
+      if (q.grup_baslik) belgeParagraf_(b, q.grup_baslik, { kalin: true, boy: 11, once: 8 });
+      if (q.grup_notu) belgeParagraf_(b, q.grup_notu, { italik: true, boy: 11 });
+      if (q.grup_gorsel) belgeyeGorsel_(b, gKlasor, q.grup_gorsel, genislik);
+    }
+    var p = belgeParagraf_(b, q.no + ". " + q.soru, { boy: 11, once: 10, sonra: 6 });
+    p.editAsText().setBold(0, String(q.no).length, true);
+    q.gorseller.forEach(function (ad) {
+      belgeyeGorsel_(b, gKlasor, ad, genislik);
+    });
+    if (q.tur === "sayi") belgeParagraf_(b, "Cevap: ............ " + q.birim, { girinti: 18 });
+    q.siklar.forEach(function (sk) {
+      var ps = belgeParagraf_(b, sk.harf + ")  " + sk.metin, { girinti: 18, sonra: 2 });
+      ps.editAsText().setBold(0, 1, true);
+    });
+  });
+  dk.saveAndClose();
+
+  // Cevap anahtarı
+  var dc = DocumentApp.create(adC);
+  var c = dc.getBody();
+  c.setMarginTop(50).setMarginBottom(50).setMarginLeft(60).setMarginRight(60);
+  c.getParagraphs()[0].setText("");
+  ust(c, "Cevap Anahtarı");
+  belgeParagraf_(c, "DEĞERLENDİRİCİ KULLANIMINA MAHSUSTUR", { kalin: true, boy: 10, once: 6, sonra: 8 });
+  var coktan = sorular.filter(function (q) { return q.tur !== "sayi"; });
+  var yarim = Math.ceil(sorular.length / 2);
+  var satirlar = [];
+  for (var i = 0; i < yarim; i++) {
+    var r = [];
+    [sorular[i], sorular[i + yarim]].forEach(function (q, j) {
+      if (j) r.push("");
+      if (!q) { r.push("", "", "", "", ""); return; }
+      if (q.tur === "sayi") { r.push(String(q.no), q.dogru, "", "", ""); return; }
+      r.push(String(q.no), "A", "B", "C", "D");
+    });
+    satirlar.push(r);
+  }
+  var tb = c.appendTable(satirlar);
+  tb.setBorderWidth(0);
+  for (var ri = 0; ri < satirlar.length; ri++) {
+    [0, 6].forEach(function (bas, j) {
+      var q = sorular[ri + j * yarim];
+      for (var ci = 0; ci < 5; ci++) {
+        var hucre = tb.getCell(ri, bas + ci);
+        hucre.setPaddingTop(1).setPaddingBottom(1).setPaddingLeft(4).setPaddingRight(4);
+        var t = hucre.editAsText();
+        if (!t.getText()) continue;
+        t.setFontSize(10).setBold(ci === 0);
+        if (ci > 0 && q && q.tur !== "sayi" && satirlar[ri][bas + ci] === q.dogru) {
+          hucre.setBackgroundColor("#000000");
+          t.setForegroundColor("#ffffff").setBold(true);
+        }
+      }
+    });
+  }
+  belgeParagraf_(c, "Doğru cevaplar siyah zeminlidir. Şıklar bu formdaki yerleşime göredir.", { boy: 9, renk: "#444444", once: 6 });
+  belgeParagraf_(c, "Soruların havuz kodları", { kalin: true, boy: 11, once: 14, sonra: 4 });
+  var kodSatir = [["No", "Soru kodu", "Sürüm", "Bölüm"]].concat(sorular.map(function (q) { return [String(q.no), q.id, String(q.surum), q.bolum]; }));
+  var tk = c.appendTable(kodSatir);
+  tk.setBorderColor("#cccccc");
+  for (var k = 0; k < kodSatir.length; k++) for (var m = 0; m < 4; m++) {
+    var hc = tk.getCell(k, m);
+    hc.setPaddingTop(1).setPaddingBottom(1);
+    hc.editAsText().setFontSize(9).setBold(k === 0);
+  }
+  dc.saveAndClose();
+
+  DriveApp.getFileById(dk.getId()).moveTo(klasor);
+  DriveApp.getFileById(dc.getId()).moveTo(klasor);
+  return { klasor: klasor.getUrl(), kitapcik: dk.getUrl(), anahtar: dc.getUrl(), soru: sorular.length, coktan: coktan.length };
+}
+
 /** Ortak şekil notlarındaki sabit soru numaralarını kaldırır ("12 ve 13 numaralı soruları aşağıdaki" -> "Aşağıdaki"). */
 function grupNotuNumarasiz_(t) {
   return String(t || "").replace(/^\s*\d+(\s*,\s*\d+)*\s+ve\s+\d+\s+numaralı\s+soruları\s+aşağıdaki/i, "Aşağıdaki");
@@ -812,7 +999,7 @@ var BASLIKLAR = {
   Ayarlar: ["anahtar", "deger"],
   Kodlar: ["tur", "kod", "ad"],
   Havuz: ["soru_id", "surum", "durum", "konu", "bolum", "zorluk", "grup", "grup_notu", "grup_gorsel", "soru", "gorsel", "tur", "A", "B", "C", "D", "E", "dogru", "tolerans", "birim", "gerekce", "kaynak", "olusturma", "onay_tarihi", "not"],
-  Sinavlar: ["kod", "merkez", "firma", "konu", "baslik", "alt_baslik", "sure_dk", "durum", "aktif", "aciklama", "kvkk_metni", "firma_sor", "gorev_sor", "bilmiyorum", "sik_karistir", "gorsel_klasor_id", "hazirlayan", "olusturma", "onay_tarihi", "not"],
+  Sinavlar: ["kod", "merkez", "firma", "konu", "calisma", "baslik", "alt_baslik", "sure_dk", "durum", "aktif", "aciklama", "kvkk_metni", "firma_sor", "gorev_sor", "bilmiyorum", "sik_karistir", "gorsel_klasor_id", "hazirlayan", "olusturma", "onay_tarihi", "not"],
   Sinav_Sorulari: ["sinav", "sira", "soru_id", "surum"],
   Formlar: ["sinav", "form", "sira", "siklar", "olusturma"],
   Kullanim: ["sinav", "form", "tarih", "katilimci_sayisi", "tur", "not"],

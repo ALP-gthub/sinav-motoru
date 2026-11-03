@@ -508,6 +508,50 @@ function belgeParagraf_(body, metin, o) {
   return p;
 }
 
+/**
+ * Sayfa sonunda bir sorunun bölünmemesi için paragraf istekleri (Google Docs API).
+ * icerik: Docs.Documents.get(...).body.content. baslarMi(metin, paragraf): paragraf yeni bir blok başlatıyorsa true.
+ * yapiskanMi(metin): başlık gibi her zaman sonrakiyle kalması gereken paragraf.
+ * Bir bloğun son paragrafı dışındakiler "sonrakiyle birlikte tut", hepsi "satırları bir arada tut" olur.
+ */
+function birlikteTutIstekleri_(icerik, baslarMi, yapiskanMi) {
+  var ps = (icerik || []).filter(function (e) { return e.paragraph; });
+  var metin = function (e) {
+    return (e.paragraph.elements || []).map(function (x) { return x.textRun ? x.textRun.content : ""; }).join("").replace(/\n$/, "");
+  };
+  var istekler = [];
+  ps.forEach(function (e, i) {
+    var sonraki = ps[i + 1];
+    var bitis = !sonraki || (baslarMi(metin(sonraki), sonraki.paragraph) && !(yapiskanMi && yapiskanMi(metin(e), e.paragraph)));
+    var stil = { keepLinesTogether: true };
+    if (!bitis) stil.keepWithNext = true;
+    istekler.push({
+      updateParagraphStyle: {
+        range: { startIndex: e.startIndex, endIndex: e.endIndex },
+        paragraphStyle: stil,
+        fields: bitis ? "keepLinesTogether" : "keepLinesTogether,keepWithNext",
+      },
+    });
+  });
+  return istekler;
+}
+
+function kitapcikBlokBasi_(blokBasi, grupIlkNo) {
+  return function (t) {
+    var m = /^(\d+)\. /.exec(t);
+    if (m) return !grupIlkNo[Number(m[1])];
+    return blokBasi[t] === true;
+  };
+}
+
+function birlikteTut_(belgeId, baslarMi, yapiskanMi) {
+  if (typeof Docs === "undefined") return 0;
+  var d = Docs.Documents.get(belgeId);
+  var istekler = birlikteTutIstekleri_(d.body.content, baslarMi, yapiskanMi);
+  for (var i = 0; i < istekler.length; i += 400) Docs.Documents.batchUpdate({ requests: istekler.slice(i, i + 400) }, belgeId);
+  return istekler.length;
+}
+
 /** Yeni belgenin baştaki boş paragrafını kaldırır (Google boş metin yazmaya izin vermez). */
 function bosIlkParagrafiSil_(body) {
   var ilk = body.getChild(0);
@@ -596,6 +640,16 @@ function kitapcikYaz_(s, kod, form, klasor, adK, adC, sorular, gKlasor, ust, olu
   });
   bosIlkParagrafiSil_(b);
   dk.saveAndClose();
+  var blokBasi = {};
+  var grupIlkNo = {}; // ortak şekil başlığından sonra gelen soru, başlıkla aynı blokta kalır
+  sorular.forEach(function (q) {
+    blokBasi[q.bolum] = true;
+    if (q.grup_ilk && (q.grup_baslik || q.grup_notu || q.grup_gorsel)) {
+      if (q.grup_baslik) blokBasi[q.grup_baslik] = true;
+      grupIlkNo[q.no] = true;
+    }
+  });
+  birlikteTut_(dk.getId(), kitapcikBlokBasi_(blokBasi, grupIlkNo), function (t) { return blokBasi[t] === true; });
 
   // Cevap anahtarı
   var dc = DocumentApp.create(adC);

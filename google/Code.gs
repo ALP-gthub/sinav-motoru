@@ -24,8 +24,9 @@
  * panelinin sayfası dosyanın sonundaki PANEL_HTML değişkenindedir.
  */
 
-var SEKIL_EN_GENIS_PT = 310; // belgelerde şekil en fazla ~11 cm genişlik
-var SEKIL_EN_YUKSEK_PT = 245; // ve ~8,6 cm yükseklik
+// Belgelerde şekil en fazla ~10,9 cm genişlik ve ~8,6 cm yükseklik (orijinal kâğıt kitapçık ölçüleri; Google Dokümanlar piksel kullanır, 96 piksel = 2,54 cm).
+var SEKIL_EN_GENIS_PX = 413;
+var SEKIL_EN_YUKSEK_PX = 327;
 var SURE_TOLERANSI_SN = 120; // Bağlantı gecikmesi için gönderimde tanınan ek süre.
 var OTURUM_HARFLERI = "ACDEFGHJKMNPQRTUVWXY34679"; // Karışabilecek harf ve rakamlar yok.
 
@@ -523,8 +524,7 @@ function belgeyeGorsel_(body, klasor, ad, genislik) {
   p.setAlignment(DocumentApp.HorizontalAlignment.CENTER).setSpacingAfter(6);
   var im = p.appendInlineImage(it.next().getBlob());
   var w = im.getWidth(), h = im.getHeight();
-  // Orijinal kâğıt kitapçıktaki baskı boyutları: en fazla yaklaşık 11 cm genişlik, 8,6 cm yükseklik.
-  var oran = Math.min(1, Math.min(genislik, SEKIL_EN_GENIS_PT) / w, SEKIL_EN_YUKSEK_PT / h);
+  var oran = Math.min(1, Math.min(genislik, SEKIL_EN_GENIS_PX) / w, SEKIL_EN_YUKSEK_PX / h);
   im.setWidth(Math.round(w * oran)).setHeight(Math.round(h * oran));
 }
 

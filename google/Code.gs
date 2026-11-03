@@ -673,15 +673,23 @@ function kitapcikYaz_(s, kod, form, klasor, adK, adC, sorular, gKlasor, ust, olu
   }
   var tb = c.appendTable(satirlar);
   tb.setBorderWidth(0);
+  // Dar sütunlar ve sıkı satırlar: 60 soruluk anahtar tek sayfaya sığar.
+  [26, 20, 20, 20, 20, 40, 26, 20, 20, 20, 20].forEach(function (g, i) { tb.setColumnWidth(i, g); });
   for (var ri = 0; ri < satirlar.length; ri++) {
+    for (var ai = 0; ai < 11; ai++) {
+      var ah = tb.getCell(ri, ai);
+      ah.setPaddingTop(1).setPaddingBottom(1).setPaddingLeft(2).setPaddingRight(2);
+      var ap = ah.getChild(0).asParagraph();
+      ap.setSpacingBefore(0).setSpacingAfter(0).setLineSpacing(1).setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+      ah.editAsText().setFontSize(9);
+    }
     [0, 6].forEach(function (bas, j) {
       var q = sorular[ri + j * yarim];
       for (var ci = 0; ci < 5; ci++) {
         var hucre = tb.getCell(ri, bas + ci);
-        hucre.setPaddingTop(1).setPaddingBottom(1).setPaddingLeft(4).setPaddingRight(4);
         var t = hucre.editAsText();
         if (!t.getText().trim()) continue;
-        t.setFontSize(10).setBold(ci === 0);
+        t.setFontSize(9).setBold(ci === 0);
         if (ci > 0 && q && q.tur !== "sayi" && satirlar[ri][bas + ci] === q.dogru) {
           hucre.setBackgroundColor("#000000");
           t.setForegroundColor("#ffffff").setBold(true);
@@ -690,7 +698,8 @@ function kitapcikYaz_(s, kod, form, klasor, adK, adC, sorular, gKlasor, ust, olu
     });
   }
   belgeParagraf_(c, "Doğru cevaplar siyah zeminlidir. Şıklar bu formdaki yerleşime göredir.", { boy: 9, renk: "#444444", once: 6 });
-  belgeParagraf_(c, "Soruların havuz kodları", { kalin: true, boy: 11, once: 14, sonra: 4 });
+  c.appendPageBreak();
+  belgeParagraf_(c, "Soruların havuz kodları", { kalin: true, boy: 11, once: 0, sonra: 4 });
   var kodSatir = [["No", "Soru kodu", "Sürüm", "Bölüm"]].concat(sorular.map(function (q) { return [String(q.no), q.id, String(q.surum), q.bolum]; }));
   var tk = c.appendTable(kodSatir);
   tk.setBorderColor("#cccccc");

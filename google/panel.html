@@ -41,6 +41,16 @@ th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left;vertic
 thead th{font-size:12px;color:var(--muted);background:var(--soft);font-weight:600;white-space:nowrap}
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .badge{display:inline-block;font-size:11px;font-weight:700;border-radius:999px;padding:2px 8px}
+.b-karantina{background:var(--bad-soft);color:var(--bad)}
+.krbox{background:var(--bad-soft);border:1px solid #f3c1bb;border-radius:10px;padding:10px 14px;margin:0 14px 12px}
+.krbox h3{margin:0 0 6px;font-size:14px;color:var(--bad)}
+.kr{border-top:1px solid #f3c1bb;padding:8px 0;font-size:13px}
+.kr:first-of-type{border-top:0}
+.kr .ne{color:#5c1d16;margin:2px 0 6px}
+.kr .btns{display:flex;gap:6px;flex-wrap:wrap}
+.okbox{background:var(--good-soft);color:#14532d;border-radius:8px;padding:8px 12px;font-size:13px;margin:0 14px 12px}
+details.gunluk{margin:0 14px 12px}
+details.gunluk summary{cursor:pointer;font-weight:600;font-size:13px;padding:4px 0}
 .b-acik{background:var(--good-soft);color:var(--good)}
 .b-kapali{background:#eef1f4;color:#596672}
 .b-bitti{background:var(--warn-soft);color:var(--warn)}
@@ -237,7 +247,7 @@ td.chk{width:28px}
   <section id="t-havuz" hidden>
     <div class="panel"><div class="pb toolbar">
       <select id="hvKonu"></select>
-      <select id="hvDurum"><option value="">Tüm durumlar</option><option>ONAYLI</option><option>TASLAK</option><option>ESKI</option><option>EMEKLI</option></select>
+      <select id="hvDurum"><option value="">Tüm durumlar</option><option>ONAYLI</option><option>TASLAK</option><option>ESKI</option><option value="KULLANIM_DISI">Kullanım dışı</option><option value="KARANTINA">Karantinada</option></select>
       <select id="hvFirma"></select>
       <select id="hvSekil"><option value="">Şekil: tümü</option><option value="var">Şekilli sorular</option><option value="yok">Yalnız metin</option></select>
       <select id="hvKul"><option value="">Kullanım: tümü</option><option value="hic">Hiç kullanılmamış</option><option value="6ay">Son 6 ayda kullanılmamış</option></select>
@@ -245,7 +255,19 @@ td.chk{width:28px}
       <span class="spacer" style="flex:1"></span>
       <span class="muted" id="hvSay" style="font-size:12px"></span>
     </div>
-    <p class="hint" style="margin:0 14px 10px">Yeni soru ve taslak metinleri E-Tablodaki Havuz sekmesine eklenir; burada onaylanır. Onaylı bir soruyu değiştirmek için "Yeni sürüm" ile düzenlenebilir bir kopya açılır, eski sürüm korunur.</p>
+    <p class="hint" style="margin:0 14px 10px" id="hvIpucu">Yeni soru ve taslak metinleri E-Tablodaki Havuz sekmesine eklenir; burada onaylanır. Onaylı bir soruyu değiştirmek için "Yeni sürüm" ile düzenlenebilir bir kopya açılır, eski sürüm korunur.</p>
+    <div id="hvKontrol" hidden>
+      <div class="pb toolbar" style="padding-top:0">
+        <span class="muted" id="hvSonKontrol" style="font-size:12px"></span>
+        <span class="spacer" style="flex:1"></span>
+        <button class="btn small" id="hvKontrolEt">Şimdi kontrol et</button>
+      </div>
+      <div id="hvKarantina"></div>
+      <details class="gunluk"><summary>İşlem kaydı</summary>
+        <div class="toolbar" style="margin:6px 0"><input id="hvGunlukAra" placeholder="Süz: soru kodu, belge ya da işlem" style="min-width:260px"></div>
+        <div class="scroll" style="max-height:300px"><table><thead><tr><th>Tarih</th><th>Belge</th><th>Soru</th><th>Sürüm</th><th>İşlem</th><th>Açıklama</th></tr></thead><tbody id="hvGunluk"></tbody></table></div>
+      </details>
+    </div>
     </div>
     <div class="panel"><div class="scroll" style="max-height:600px"><table>
       <thead><tr><th>Soru</th><th>Sürüm</th><th>Durum</th><th>Bölüm</th><th>Zorluk</th><th>Şekil</th><th>Metin</th><th class="num">Sınav</th><th class="num">Oturum</th><th class="num">Kişi</th><th>Firmalar</th><th>Son kullanım</th><th class="num">Ölçülen doğru</th><th></th></tr></thead>
@@ -526,7 +548,7 @@ td.chk{width:28px}
   function gun(iso) { return iso ? new Date(iso).toLocaleDateString("tr-TR") : ""; }
   function rozet(d) {
     var c = { ONAYLI: "b-onayli", TASLAK: "b-taslak", ARSIV: "b-arsiv", ESKI: "b-eski", EMEKLI: "b-eski" }[d] || "b-kapali";
-    var ad = { ONAYLI: "Onaylı", TASLAK: "Taslak", ARSIV: "Arşiv", ESKI: "Eski sürüm", EMEKLI: "Emekli" }[d] || d;
+    var ad = { ONAYLI: "Onaylı", TASLAK: "Taslak", ARSIV: "Arşiv", ESKI: "Eski sürüm", EMEKLI: "Emekli", KULLANIM_DISI: "Kullanım dışı" }[d] || d;
     return '<span class="badge ' + c + '">' + esc(ad) + "</span>";
   }
   function kisa(t, n) { t = String(t || ""); return t.length > n ? t.slice(0, n) + "…" : t; }
@@ -728,11 +750,59 @@ td.chk{width:28px}
 
   // ---------- Soru havuzu ----------
   var havuz = [];
+  var hvDurumVeri = null;
+  function belgeLink(id, ad) {
+    return id ? '<a href="https://docs.google.com/document/d/' + encodeURIComponent(id) + '/edit" target="_blank">' + esc(ad || "belge") + "</a>" : esc(ad || "");
+  }
+  function hvDurumCiz() {
+    var d = hvDurumVeri;
+    $("hvKontrol").hidden = !d || !d.acik;
+    if (!d || !d.acik) return;
+    $("hvIpucu").textContent = "Sorular Drive'daki Soru Havuzu belgelerinde düzenlenir. Sistem belgeleri 30 dakikada bir ve her sınav, form ya da kitapçık işleminden hemen önce kontrol eder. Eksiksiz okunamayan ya da onaylıyken değişen soru karantinaya alınır ve düzelene kadar kullanılmaz.";
+    $("hvSonKontrol").textContent = "Son kontrol: " + (d.sonKontrol || "henüz yok");
+    if (!d.karantina.length) {
+      $("hvKarantina").innerHTML = '<div class="okbox">Karantinada soru yok. Tüm sorular eksiksiz okundu.</div>';
+    } else {
+      $("hvKarantina").innerHTML = '<div class="krbox"><h3>' + d.karantina.length + " kayıt karantinada</h3>" + d.karantina.map(function (x) {
+        var b = "";
+        if (x.karar) b = '<button class="btn small" data-karar="yeni_surum" data-id="' + esc(x.id) + '" data-v="' + esc(x.surum) + '">Yeni sürüm olarak kaydet</button><button class="btn small" data-karar="duzeltme" data-id="' + esc(x.id) + '" data-v="' + esc(x.surum) + '">Anlamı değişmedi</button><button class="btn small" data-karar="geri_al" data-id="' + esc(x.id) + '" data-v="' + esc(x.surum) + '">Geri al</button>';
+        else if (/Eski sürüm kaydı değişmiş/.test(x.sorun)) b = '<button class="btn small" data-karar="geri_al" data-id="' + esc(x.id) + '" data-v="' + esc(x.surum) + '">Geri al</button>';
+        return '<div class="kr"><b>' + esc(x.id ? x.id + (x.surum ? " (Sürüm " + x.surum + ")" : "") : "Belge uyarısı") + "</b> · " + belgeLink(x.belge, x.belgeAdi) + ' <span class="muted">· ' + esc(x.ilk) + '</span><div class="ne">' + esc(x.sorun) + '</div><div class="btns">' + b + "</div></div>";
+      }).join("") + "</div>";
+    }
+    gunlukCiz();
+  }
+  function gunlukCiz() {
+    var d = hvDurumVeri;
+    if (!d || !d.acik) return;
+    var a = $("hvGunlukAra").value.trim().toLocaleLowerCase("tr");
+    var l = d.gunluk.filter(function (g) { return !a || (g.belge + " " + g.soru_id + " " + g.islem + " " + g.aciklama).toLocaleLowerCase("tr").indexOf(a) >= 0; });
+    $("hvGunluk").innerHTML = l.map(function (g) {
+      return "<tr><td>" + esc(g.tarih) + "</td><td>" + esc(g.belge) + "</td><td>" + esc(g.soru_id) + "</td><td>" + esc(g.surum) + "</td><td>" + esc(g.islem) + "</td><td>" + esc(g.aciklama) + "</td></tr>";
+    }).join("") || '<tr><td colspan="6" class="empty">Kayıt yok.</td></tr>';
+  }
+  $("hvGunlukAra").addEventListener("input", gunlukCiz);
+  $("hvKontrolEt").addEventListener("click", function () {
+    var b = this;
+    b.disabled = true;
+    sunucu("havuzKontrolEt", [false]).then(function () { b.disabled = false; return havuzYukle(); }).catch(function (e) { b.disabled = false; alert("Hata: " + e); });
+  });
+  $("hvKarantina").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-karar]");
+    if (!b) return;
+    var ne = { yeni_surum: "Değişen hal yeni sürüm olarak onaylanacak; önceki sürüm Eski sürümler belgesine taşınacak.", duzeltme: "Değişiklik aynı sürümde kabul edilecek (anlamı değişmedi).", geri_al: "Belgedeki soru, son onaylı haliyle yeniden yazılacak; yapılan değişiklik kaybolacak." }[b.dataset.karar];
+    if (!confirm(b.dataset.id + ": " + ne + " Devam edilsin mi?")) return;
+    b.disabled = true;
+    sunucu("havuzKarari", [b.dataset.id, Number(b.dataset.v), b.dataset.karar]).then(function () { return havuzYukle(); }).catch(function (err) { b.disabled = false; alert("Hata: " + err); });
+  });
   function havuzYukle() {
     yukleniyor(true);
-    return sunucu("havuzListesi").then(function (l) {
+    return Promise.all([sunucu("havuzListesi"), sunucu("havuzDurumu")]).then(function (rr) {
+      var l = rr[0];
+      hvDurumVeri = rr[1];
       yukleniyor(false);
       havuz = l;
+      hvDurumCiz();
       secenekler($("hvKonu"), veri.kodlar.KONU, "Tüm konular");
       secenekler($("hvFirma"), veri.kodlar.FIRMA, "Firma vurgusu yok");
       havuzCiz();
@@ -745,7 +815,7 @@ td.chk{width:28px}
       if (konu && q.konu !== konu) return false;
       if (sekil === "var" && !q.sekil) return false;
       if (sekil === "yok" && q.sekil) return false;
-      if (durum && q.durum !== durum) return false;
+      if (durum === "KARANTINA" ? !q.karantina : durum && q.durum !== durum) return false;
       if (kul === "hic" && q.kullanim.oturum) return false;
       if (kul === "6ay" && q.kullanim.son && new Date(q.kullanim.son).getTime() > altiAy) return false;
       if (ara && (q.id + " " + q.soru).toLocaleLowerCase("tr").indexOf(ara) < 0) return false;
@@ -755,8 +825,10 @@ td.chk{width:28px}
     $("hvBody").innerHTML = l.map(function (q) {
       var f = Object.keys(q.kullanim.firmalar);
       var gor = firma && f.indexOf(firma) >= 0;
-      var islem = q.durum === "TASLAK" ? '<button class="btn small" data-on="' + esc(q.id) + '" data-v="' + q.surum + '">Onayla</button>' : '<button class="btn small" data-ys="' + esc(q.id) + '">Yeni sürüm</button>';
-      return "<tr" + (gor ? ' class="sel"' : "") + "><td>" + pvLink(q.id, q.surum) + "</td><td>v" + q.surum + (q.onayli_surum && q.onayli_surum !== q.surum ? ' <span class="muted">(onaylı v' + q.onayli_surum + ")</span>" : "") + "</td><td>" + rozet(q.durum) + "</td><td>" + esc(q.bolum) + "</td><td>" + esc(q.zorluk) +
+      var belgeli = hvDurumVeri && hvDurumVeri.acik;
+      var islem = q.karantina ? "" : q.durum === "TASLAK" ? '<button class="btn small" data-on="' + esc(q.id) + '" data-v="' + q.surum + '">Onayla</button>' : belgeli ? "" : '<button class="btn small" data-ys="' + esc(q.id) + '">Yeni sürüm</button>';
+      if (belgeli && q.belge) islem += (islem ? " " : "") + belgeLink(q.belge, "Belgeyi aç");
+      return "<tr" + (gor ? ' class="sel"' : "") + "><td>" + pvLink(q.id, q.surum) + "</td><td>v" + q.surum + (q.onayli_surum && q.onayli_surum !== q.surum ? ' <span class="muted">(onaylı v' + q.onayli_surum + ")</span>" : "") + "</td><td>" + rozet(q.durum) + (q.karantina ? ' <span class="badge b-karantina" title="' + esc(q.karantina) + '">Karantina</span>' : "") + "</td><td>" + esc(q.bolum) + "</td><td>" + esc(q.zorluk) +
         "</td><td>" + sekilRozet(q.sekil) + '</td><td title="' + esc(q.soru) + '">' + esc(kisa(q.soru, 60)) + '</td><td class="num">' + q.kullanim.sinavlar.length + '</td><td class="num">' + q.kullanim.oturum + '</td><td class="num">' + q.kullanim.katilimci + "</td><td" + (gor ? ' class="seen"' : "") + ">" + esc(f.join(", ")) +
         "</td><td>" + esc(gun(q.kullanim.son)) + '</td><td class="num">' + yuzde(q.kullanim.olculen) + "</td><td>" + islem + "</td></tr>";
     }).join("") || '<tr><td colspan="14" class="empty">Kayıt yok.</td></tr>';

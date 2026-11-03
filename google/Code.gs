@@ -754,6 +754,149 @@ function kitapcikYaz_(s, kod, form, klasor, adK, adC, sorular, gKlasor, ust, olu
   return { klasor: klasor.getUrl(), kitapcik: dk.getUrl(), anahtar: dc.getUrl(), soru: sorular.length, coktan: coktan.length };
 }
 
+// ---------------------------------------------------------------------------
+// Soru Havuzu belgeleri (Drive: Sınav Sistemi/Soru Havuzu/<KONU - ad>/<NN - bölüm>)
+// ---------------------------------------------------------------------------
+
+function tarihGosterim_(ms) {
+  if (!ms || ms <= 1) return "";
+  return Utilities.formatDate(new Date(ms), SpreadsheetApp.getActive().getSpreadsheetTimeZone() || "Europe/Istanbul", "dd.MM.yyyy");
+}
+
+/** Soru belgesinde sorunun altındaki tek satırlık kullanım özeti (yalnızca kayıtlı verilerden). */
+function kullanimSatiri_(z) {
+  if (!z || !z.sinavlar.length) return "Kullanım: henüz hiçbir sınavda yer almadı.";
+  var p = ["Yer aldığı sınavlar: " + z.sinavlar.join(", ")];
+  p.push("Sorulduğu kişi: " + (z.katilimci || 0));
+  var f = Object.keys(z.firmalar || {});
+  if (f.length) p.push("Firmalar: " + f.join(", "));
+  var son = tarihGosterim_(z.son);
+  p.push("Son kullanım: " + (son || (z.katilimci ? "tarih kayıtlı değil" : "yok")));
+  p.push("Ölçülen doğru oranı: " + (z.cevaplayan ? "%" + Math.round((z.dogru / z.cevaplayan) * 100) + " (" + z.cevaplayan + " kişi)" : "veri yok"));
+  return "Kullanım: " + p.join(" · ");
+}
+
+/** Havuzdaki her sorunun son (eski olmayan) sürümü, konu ve bölüme göre belgelere ayrılmış plan. */
+function havuzBelgePlani_(havuz) {
+  var h = havuz || havuz_();
+  var son = {};
+  Object.keys(h).forEach(function (k) {
+    var q = h[k];
+    if (String(q.durum).toUpperCase() === "ESKI") return;
+    if (!son[q.soru_id] || q.surum > son[q.soru_id].surum) son[q.soru_id] = q;
+  });
+  var kd = kodlar_();
+  var konular = {};
+  Object.keys(son).sort().forEach(function (id) {
+    var q = son[id];
+    var konu = String(q.konu || id.split("-")[0]).toUpperCase();
+    var k = (konular[konu] = konular[konu] || { konu: konu, bolumler: [], bolumIdx: {} });
+    var b = String(q.bolum || "Diğer");
+    if (k.bolumIdx[b] === undefined) {
+      k.bolumIdx[b] = k.bolumler.length;
+      k.bolumler.push({ bolum: b, sorular: [] });
+    }
+    k.bolumler[k.bolumIdx[b]].sorular.push(q);
+  });
+  var plan = [];
+  Object.keys(konular).sort().forEach(function (konu) {
+    var ad = kd.KONU[konu] || konu;
+    konular[konu].bolumler.forEach(function (b, i) {
+      plan.push({ konu: konu, klasor: konu + " - " + ad, belge: ("0" + (i + 1)).slice(-2) + " - " + b.bolum, bolum: b.bolum, konuAd: ad, sorular: b.sorular });
+    });
+  });
+  return plan;
+}
+
+/** Bir bölüm belgesini yazar. Aynı adda belge varsa üzerine yazmaz. */
+function havuzBelgesiYaz_(parca, klasor, ozet, gKlasor) {
+  if (klasor.getFilesByName(parca.belge).hasNext()) throw new Error("Belge zaten var: " + parca.belge);
+  var d = DocumentApp.create(parca.belge);
+  try {
+    var b = d.getBody();
+    b.setMarginTop(50).setMarginBottom(50).setMarginLeft(60).setMarginRight(60);
+    var genislik = b.getPageWidth() - 120;
+    belgeParagraf_(b, parca.belge, { baslik: DocumentApp.ParagraphHeading.TITLE, boy: 22 });
+    belgeParagraf_(b, parca.konuAd + " (" + parca.konu + ") · " + parca.sorular.length + " soru", { renk: "#555555", boy: 11, sonra: 10 });
+    var grupGoruldu = {};
+    var grupIlk = {};
+    var grupUyeleri = {};
+    parca.sorular.forEach(function (q) {
+      var g = String(q.grup || "").trim();
+      if (g) (grupUyeleri[g] = grupUyeleri[g] || []).push(q.soru_id);
+    });
+    parca.sorular.forEach(function (q) {
+      var g = String(q.grup || "").trim();
+      if (g && !grupGoruldu[g] && (q.grup_notu || q.grup_gorsel)) {
+        grupGoruldu[g] = true;
+        grupIlk[q.soru_id] = true;
+        var u = grupUyeleri[g];
+        belgeParagraf_(b, "Ortak şekil " + g + ": " + (u.length > 1 ? u.slice(0, -1).join(", ") + " ve " + u[u.length - 1] : u[0]), { kalin: true, boy: 11, once: 14 });
+        if (q.grup_notu) belgeParagraf_(b, String(q.grup_notu), { italik: true, boy: 11 });
+        if (String(q.grup_gorsel || "").trim()) belgeyeGorsel_(b, gKlasor, String(q.grup_gorsel).trim(), genislik);
+      }
+      var durum = String(q.durum).toUpperCase() === "ONAYLI" ? "Onaylı" : "Taslak";
+      belgeParagraf_(b, q.soru_id + "  ·  Sürüm " + q.surum + "  ·  " + durum, { baslik: DocumentApp.ParagraphHeading.HEADING2, boy: 14, once: 14, sonra: 4 });
+      belgeParagraf_(b, "Zorluk: " + (q.zorluk || ""), { renk: "#666666", boy: 9 });
+      belgeParagraf_(b, String(q.soru), { boy: 11, once: 6, sonra: 6 });
+      sekilAdlari_(q).forEach(function (ad) {
+        belgeyeGorsel_(b, gKlasor, ad, genislik);
+      });
+      if (String(q.tur) === "sayi") {
+        belgeParagraf_(b, "Cevap türü: sayı" + (q.birim ? " (" + q.birim + ")" : ""), { girinti: 18 });
+      } else {
+        ["A", "B", "C", "D", "E"].forEach(function (h) {
+          if (String(q[h] === undefined ? "" : q[h]).trim() === "") return;
+          var ps = belgeParagraf_(b, h + ")  " + q[h], { girinti: 18, sonra: 2 });
+          ps.editAsText().setBold(0, 1, true);
+        });
+      }
+      belgeParagraf_(b, "Doğru cevap: " + q.dogru + (q.tolerans ? " (tolerans ±" + q.tolerans + ")" : ""), { kalin: true, renk: "#1f8a4c", boy: 11, once: 6 });
+      belgeParagraf_(b, "Gerekçe: " + (q.gerekce || ""), { renk: "#666666", boy: 9 });
+      belgeParagraf_(b, "Kaynak: " + String(q.kaynak || "").replace(/ \([^)]*\) soru /, ", soru "), { renk: "#666666", boy: 9 });
+      belgeParagraf_(b, kullanimSatiri_(ozet[q.soru_id]), { renk: "#666666", boy: 9, italik: true });
+    });
+    bosIlkParagrafiSil_(b);
+    d.saveAndClose();
+    birlikteTut_(
+      d.getId(),
+      function (t) {
+        var m = /^([A-Z]{2,6}-\d{4})  ·  Sürüm/.exec(t);
+        if (m) return !grupIlk[m[1]];
+        return /^Ortak şekil [A-Z]{2,6}-G\d+:/.test(t);
+      },
+      function (t) {
+        return /^Ortak şekil [A-Z]{2,6}-G\d+:/.test(t);
+      }
+    );
+    DriveApp.getFileById(d.getId()).moveTo(klasor);
+    return d.getId();
+  } catch (e) {
+    try { DriveApp.getFileById(d.getId()).setTrashed(true); } catch (e2) {}
+    throw e;
+  }
+}
+
+/** Bir konunun bölüm belgelerini oluşturur. yenile: aynı adlı eski belge çöpe atılıp yeniden yazılır. */
+function havuzBelgeleriOlustur_(konu, yenile) {
+  var plan = havuzBelgePlani_().filter(function (p) { return !konu || p.konu === konu; });
+  var ozet = kullanimOzeti_().soru;
+  var gk = havuzGorselKlasoru_();
+  var gKlasor = gk ? DriveApp.getFolderById(gk) : null;
+  var sistem = DriveApp.getFileById(SpreadsheetApp.getActive().getId()).getParents().next();
+  var kok = altKlasor_(sistem, "Soru Havuzu");
+  var sonuc = [];
+  plan.forEach(function (p) {
+    var k = altKlasor_(kok, p.klasor);
+    if (yenile) {
+      var it = k.getFilesByName(p.belge);
+      while (it.hasNext()) it.next().setTrashed(true);
+    }
+    sonuc.push(p.klasor + " / " + p.belge + " (" + p.sorular.length + " soru) " + havuzBelgesiYaz_(p, k, ozet, gKlasor));
+  });
+  return sonuc;
+}
+
 /** Ortak şekil notlarındaki sabit soru numaralarını kaldırır ("12 ve 13 numaralı soruları aşağıdaki" -> "Aşağıdaki"). */
 function grupNotuNumarasiz_(t) {
   return String(t || "").replace(/^\s*\d+(\s*,\s*\d+)*\s+ve\s+\d+\s+numaralı\s+soruları\s+aşağıdaki/i, "Aşağıdaki");

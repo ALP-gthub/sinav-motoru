@@ -809,7 +809,7 @@ function havuzBelgePlani_(havuz) {
 }
 
 /** Bir bölüm belgesini yazar. Aynı adda belge varsa üzerine yazmaz. */
-function havuzBelgesiYaz_(parca, klasor, ozet, gKlasor) {
+function havuzBelgesiYaz_(parca, klasor, ozet, gKlasor, notlar) {
   if (klasor.getFilesByName(parca.belge).hasNext()) throw new Error("Belge zaten var: " + parca.belge);
   var d = DocumentApp.create(parca.belge);
   try {
@@ -855,6 +855,9 @@ function havuzBelgesiYaz_(parca, klasor, ozet, gKlasor) {
       belgeParagraf_(b, "Gerekçe: " + (q.gerekce || ""), { renk: "#666666", boy: 9 });
       belgeParagraf_(b, "Kaynak: " + String(q.kaynak || "").replace(/ \([^)]*\) soru /, ", soru "), { renk: "#666666", boy: 9 });
       belgeParagraf_(b, kullanimSatiri_(ozet[q.soru_id]), { renk: "#666666", boy: 9, italik: true });
+      ((notlar || {})[q.soru_id] || []).forEach(function (n) {
+        notParagrafiBicimle_(belgeParagraf_(b, n, { renk: "#666666", boy: 9 }));
+      });
     });
     bosIlkParagrafiSil_(b);
     d.saveAndClose();
@@ -888,13 +891,112 @@ function havuzBelgeleriOlustur_(konu, yenile) {
   var sonuc = [];
   plan.forEach(function (p) {
     var k = altKlasor_(kok, p.klasor);
+    var notlar = {};
     if (yenile) {
       var it = k.getFilesByName(p.belge);
-      while (it.hasNext()) it.next().setTrashed(true);
+      while (it.hasNext()) {
+        var f = it.next();
+        var eski = belgeNotlari_(f.getId());
+        Object.keys(eski).forEach(function (id) { notlar[id] = (notlar[id] || []).concat(eski[id]); });
+        f.setTrashed(true);
+      }
     }
-    sonuc.push(p.klasor + " / " + p.belge + " (" + p.sorular.length + " soru) " + havuzBelgesiYaz_(p, k, ozet, gKlasor));
+    sonuc.push(p.klasor + " / " + p.belge + " (" + p.sorular.length + " soru) " + havuzBelgesiYaz_(p, k, ozet, gKlasor, notlar));
   });
   return sonuc;
+}
+
+var IYILESTIRME_ONEK = "İyileştirme notu: ";
+var SORU_BASLIK_RE = /^([A-Z]{2,6}-\d{4})  ·  Sürüm/;
+
+function notParagrafiBicimle_(p) {
+  var t = p.editAsText();
+  t.setFontSize(9).setForegroundColor("#666666").setItalic(false).setBold(false);
+  t.setBold(0, IYILESTIRME_ONEK.length - 2, true);
+  return p;
+}
+
+/** Paragraf metinlerinden soru kodu bazında iyileştirme notları: { "PLC-0019": ["İyileştirme notu: ..."] }. */
+function notlariAyikla_(metinler) {
+  var notlar = {};
+  var id = "";
+  metinler.forEach(function (t) {
+    var m = SORU_BASLIK_RE.exec(t);
+    if (m) id = m[1];
+    else if (/^Ortak şekil /.test(t)) id = "";
+    else if (id && t.indexOf(IYILESTIRME_ONEK) === 0) (notlar[id] = notlar[id] || []).push(t);
+  });
+  return notlar;
+}
+
+function belgeNotlari_(belgeId) {
+  var b = DocumentApp.openById(belgeId).getBody();
+  var metinler = [];
+  for (var i = 0; i < b.getNumChildren(); i++) {
+    var c = b.getChild(i);
+    metinler.push(c.getType() === DocumentApp.ElementType.PARAGRAPH ? c.asParagraph().getText() : "");
+  }
+  return notlariAyikla_(metinler);
+}
+
+/**
+ * Soru Havuzu belgesinde sorunun altına (kullanım satırından sonra) iyileştirme notu ekler.
+ * Soru değişmez; not yalnızca ileride açılacak yeni sürüm için hatırlatmadır. Aynı not iki kez eklenmez.
+ */
+function iyilestirmeNotuEkle_(soruId, metin) {
+  var yazi = IYILESTIRME_ONEK + String(metin).trim();
+  var sistem = DriveApp.getFileById(SpreadsheetApp.getActive().getId()).getParents().next();
+  var konular = altKlasor_(sistem, "Soru Havuzu").getFolders();
+  while (konular.hasNext()) {
+    var dosyalar = konular.next().getFilesByType(MimeType.GOOGLE_DOCS);
+    while (dosyalar.hasNext()) {
+      var f = dosyalar.next();
+      var d = DocumentApp.openById(f.getId());
+      var b = d.getBody();
+      var n = b.getNumChildren();
+      var metin_ = function (i) {
+        var c = b.getChild(i);
+        return c.getType() === DocumentApp.ElementType.PARAGRAPH ? c.asParagraph().getText() : "";
+      };
+      var bas = -1;
+      for (var i = 0; i < n; i++) {
+        var m = SORU_BASLIK_RE.exec(metin_(i));
+        if (m && m[1] === soruId) { bas = i; break; }
+      }
+      if (bas < 0) continue;
+      var son = n - 1;
+      for (var j = bas + 1; j < n; j++) {
+        var t = metin_(j);
+        if (SORU_BASLIK_RE.test(t) || /^Ortak şekil /.test(t)) { son = j - 1; break; }
+        if (t === yazi) return "Zaten var: " + soruId + " (" + f.getName() + ")";
+      }
+      while (son > bas && metin_(son) === "") son--;
+      var p = b.insertParagraph(son + 1, yazi);
+      p.setHeading(DocumentApp.ParagraphHeading.NORMAL).setSpacingBefore(0).setSpacingAfter(4).setIndentStart(0).setIndentFirstLine(0);
+      notParagrafiBicimle_(p);
+      d.saveAndClose();
+      notlariBagla_(f.getId());
+      return "Eklendi: " + soruId + " (" + f.getName() + ")";
+    }
+  }
+  throw new Error("Soru Havuzu belgelerinde bulunamadı: " + soruId);
+}
+
+/** Notun sorudan ayrı sayfaya düşmemesi için nottan önceki paragrafı sonrakiyle birlikte tutar. */
+function notlariBagla_(belgeId) {
+  if (typeof Docs === "undefined") return 0;
+  var ps = (Docs.Documents.get(belgeId).body.content || []).filter(function (e) { return e.paragraph; });
+  var metin = function (e) {
+    return (e.paragraph.elements || []).map(function (x) { return x.textRun ? x.textRun.content : ""; }).join("");
+  };
+  var istekler = [];
+  ps.forEach(function (e, i) {
+    if (ps[i + 1] && metin(ps[i + 1]).indexOf(IYILESTIRME_ONEK) === 0) {
+      istekler.push({ updateParagraphStyle: { range: { startIndex: e.startIndex, endIndex: e.endIndex }, paragraphStyle: { keepWithNext: true, keepLinesTogether: true }, fields: "keepWithNext,keepLinesTogether" } });
+    }
+  });
+  if (istekler.length) Docs.Documents.batchUpdate({ requests: istekler }, belgeId);
+  return istekler.length;
 }
 
 /** Ortak şekil notlarındaki sabit soru numaralarını kaldırır ("12 ve 13 numaralı soruları aşağıdaki" -> "Aşağıdaki"). */

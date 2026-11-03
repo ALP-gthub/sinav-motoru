@@ -1,0 +1,9 @@
+name: Sistem sürümü
+on: [push, pull_request]
+jobs:
+  kontrol:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Code.gs ve sistem sürümü güncel mi
+        run: python3 tools/build.py --check

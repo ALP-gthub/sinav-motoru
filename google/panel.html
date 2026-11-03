@@ -124,6 +124,7 @@ td.chk{width:28px}
   <button class="refresh" id="refresh">Yenile</button>
 </nav>
 <main>
+  <div class="warnbox" id="kvUyari" hidden style="display:flex;gap:12px;align-items:center;margin:0 0 14px"><span id="kvMetin" style="flex:1"></span><button class="btn small" id="kvOnay">Kılavuzu gözden geçirdim, güncel</button></div>
   <!-- Yeni oturum -->
   <section id="t-yeni">
     <div class="grid2">
@@ -343,6 +344,7 @@ td.chk{width:28px}
     yukleniyor(true);
     return sunucu("panelVeri").then(function (v) {
       veri = v;
+      kilavuzCiz(v.kilavuz);
       formDoldur();
       listeCiz();
       sinavlarCiz();
@@ -350,6 +352,20 @@ td.chk{width:28px}
       yukleniyor(false);
     }).catch(function (e) { yukleniyor(false); alertHata(e); });
   }
+  function kilavuzCiz(k) {
+    $("kvUyari").hidden = !k || k.uyumlu;
+    if (!k || k.uyumlu) return;
+    $("kvMetin").innerHTML = k.bulunamadi
+      ? "<b>Kullanım kılavuzu bulunamadı.</b> Sınav Sistemi klasöründe \"Sınav Sistemi - Kullanım Kılavuzu\" belgesi olmalı."
+      : "<b>Sistem değişti, kullanım kılavuzu güncellenmeli.</b> Sistem sürümü " + esc(k.sistem) + ", kılavuz " + (k.kilavuz ? esc(k.kilavuz) + " sürümüne göre" : "sürüm satırı içermiyor") + '. <a href="https://docs.google.com/document/d/' + encodeURIComponent(k.belge) + '/edit" target="_blank">Kılavuzu aç</a>';
+    $("kvOnay").hidden = !!k.bulunamadi;
+  }
+  $("kvOnay").addEventListener("click", function () {
+    if (!confirm("Kılavuzu bu sistem sürümüne göre gözden geçirdiğinizi ve güncel olduğunu onaylıyor musunuz? Bu işlem tarihiyle işlem kaydına yazılır.")) return;
+    var b = this;
+    b.disabled = true;
+    sunucu("kilavuzOnayla").then(function (k) { b.disabled = false; kilavuzCiz(k); }).catch(function (e) { b.disabled = false; alert("Hata: " + e); });
+  });
   function alertHata(e) { $("formErr").textContent = "Hata: " + e; $("formErr").hidden = false; }
 
   function formDoldur() {

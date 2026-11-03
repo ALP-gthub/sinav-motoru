@@ -1052,8 +1052,24 @@ function havuzKokKlasoru_() {
   return altKlasor_(sistem, "Soru Havuzu");
 }
 
+var SISTEM_KLASOR_ADI = "Sistem dosyaları";
+
+/**
+ * Sistemin kendi kayıtları (durum dosyası, şekil kopyaları): ana tablonun klasörü / "Sistem dosyaları".
+ * Eski yerleşimdeki "Soru Havuzu/_sistem" klasörü bulunursa bir kez buraya taşınır ve yeniden adlandırılır.
+ */
 function havuzSistemKlasoru_() {
-  return altKlasor_(havuzKokKlasoru_(), "_sistem");
+  var kok = DriveApp.getFileById(SpreadsheetApp.getActive().getId()).getParents().next();
+  var it = kok.getFoldersByName(SISTEM_KLASOR_ADI);
+  if (it.hasNext()) return it.next();
+  var eski = havuzKokKlasoru_().getFoldersByName("_sistem");
+  if (eski.hasNext()) {
+    var f = eski.next();
+    f.moveTo(kok);
+    f.setName(SISTEM_KLASOR_ADI);
+    return f;
+  }
+  return kok.createFolder(SISTEM_KLASOR_ADI);
 }
 
 function havuzSekilKlasoru_() {

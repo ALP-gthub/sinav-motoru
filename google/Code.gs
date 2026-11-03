@@ -543,8 +543,21 @@ function kitapcikOlustur_(kod, form) {
     if (String(s.hazirlayan || "").trim()) belgeParagraf_(body, "Hazırlayan: " + String(s.hazirlayan).trim(), { boy: 10, renk: "#444444" });
   };
 
+  var olusan = [];
+  try {
+    return kitapcikYaz_(s, kod, form, klasor, adK, adC, sorular, gKlasor, ust, olusan);
+  } catch (e) {
+    olusan.forEach(function (id) {
+      try { DriveApp.getFileById(id).setTrashed(true); } catch (e2) {}
+    });
+    throw e;
+  }
+}
+
+function kitapcikYaz_(s, kod, form, klasor, adK, adC, sorular, gKlasor, ust, olusan) {
   // Kitapçık
   var dk = DocumentApp.create(adK);
+  olusan.push(dk.getId());
   var b = dk.getBody();
   b.setMarginTop(50).setMarginBottom(50).setMarginLeft(60).setMarginRight(60);
   var genislik = b.getPageWidth() - 120;
@@ -576,6 +589,7 @@ function kitapcikOlustur_(kod, form) {
 
   // Cevap anahtarı
   var dc = DocumentApp.create(adC);
+  olusan.push(dc.getId());
   var c = dc.getBody();
   c.setMarginTop(50).setMarginBottom(50).setMarginLeft(60).setMarginRight(60);
   c.getParagraphs()[0].setText("");
@@ -587,9 +601,9 @@ function kitapcikOlustur_(kod, form) {
   for (var i = 0; i < yarim; i++) {
     var r = [];
     [sorular[i], sorular[i + yarim]].forEach(function (q, j) {
-      if (j) r.push("");
-      if (!q) { r.push("", "", "", "", ""); return; }
-      if (q.tur === "sayi") { r.push(String(q.no), q.dogru, "", "", ""); return; }
+      if (j) r.push(" ");
+      if (!q) { r.push(" ", " ", " ", " ", " "); return; }
+      if (q.tur === "sayi") { r.push(String(q.no), q.dogru, " ", " ", " "); return; }
       r.push(String(q.no), "A", "B", "C", "D");
     });
     satirlar.push(r);
@@ -603,7 +617,7 @@ function kitapcikOlustur_(kod, form) {
         var hucre = tb.getCell(ri, bas + ci);
         hucre.setPaddingTop(1).setPaddingBottom(1).setPaddingLeft(4).setPaddingRight(4);
         var t = hucre.editAsText();
-        if (!t.getText()) continue;
+        if (!t.getText().trim()) continue;
         t.setFontSize(10).setBold(ci === 0);
         if (ci > 0 && q && q.tur !== "sayi" && satirlar[ri][bas + ci] === q.dogru) {
           hucre.setBackgroundColor("#000000");

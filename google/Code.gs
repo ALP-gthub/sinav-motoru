@@ -2320,7 +2320,8 @@ function belgedeDurumDegistir_(id, surum, durum) {
 
 function havuzMenuKontrol() {
   var r = havuzKontrol_({});
-  SpreadsheetApp.getUi().alert("Soru havuzu kontrolü", r.belge + " belge, " + r.soru + " soru. Karantinada: " + r.karantina + ". Yeni işlem kaydı: " + r.islem + ".", SpreadsheetApp.getUi().ButtonSet.OK);
+  // Bildirim kutusu yerine köşe bildirimi: kullanıcı kapatmasa da işlem bekletmeden biter.
+  SpreadsheetApp.getActive().toast(r.belge + " belge, " + r.soru + " soru. Karantinada: " + r.karantina + ". Yeni işlem kaydı: " + r.islem + ".", "Soru havuzu kontrolü", 15);
 }
 
 function havuzMenuOtomatik() {

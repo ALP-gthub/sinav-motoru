@@ -505,6 +505,12 @@ function belgeParagraf_(body, metin, o) {
   return p;
 }
 
+/** Yeni belgenin baştaki boş paragrafını kaldırır (Google boş metin yazmaya izin vermez). */
+function bosIlkParagrafiSil_(body) {
+  var ilk = body.getChild(0);
+  if (body.getNumChildren() > 1 && ilk.getType() === DocumentApp.ElementType.PARAGRAPH && ilk.asParagraph().getText() === "") ilk.removeFromParent();
+}
+
 function belgeyeGorsel_(body, klasor, ad, genislik) {
   var it = klasor ? klasor.getFilesByName(ad) : null;
   if (!it || !it.hasNext()) {
@@ -561,7 +567,6 @@ function kitapcikYaz_(s, kod, form, klasor, adK, adC, sorular, gKlasor, ust, olu
   var b = dk.getBody();
   b.setMarginTop(50).setMarginBottom(50).setMarginLeft(60).setMarginRight(60);
   var genislik = b.getPageWidth() - 120;
-  b.getParagraphs()[0].setText("");
   ust(b, "");
   var sonBolum = null;
   sorular.forEach(function (q) {
@@ -585,6 +590,7 @@ function kitapcikYaz_(s, kod, form, klasor, adK, adC, sorular, gKlasor, ust, olu
       ps.editAsText().setBold(0, 1, true);
     });
   });
+  bosIlkParagrafiSil_(b);
   dk.saveAndClose();
 
   // Cevap anahtarı
@@ -592,7 +598,6 @@ function kitapcikYaz_(s, kod, form, klasor, adK, adC, sorular, gKlasor, ust, olu
   olusan.push(dc.getId());
   var c = dc.getBody();
   c.setMarginTop(50).setMarginBottom(50).setMarginLeft(60).setMarginRight(60);
-  c.getParagraphs()[0].setText("");
   ust(c, "Cevap Anahtarı");
   belgeParagraf_(c, "DEĞERLENDİRİCİ KULLANIMINA MAHSUSTUR", { kalin: true, boy: 10, once: 6, sonra: 8 });
   var coktan = sorular.filter(function (q) { return q.tur !== "sayi"; });
@@ -636,6 +641,7 @@ function kitapcikYaz_(s, kod, form, klasor, adK, adC, sorular, gKlasor, ust, olu
     hc.setPaddingTop(1).setPaddingBottom(1);
     hc.editAsText().setFontSize(9).setBold(k === 0);
   }
+  bosIlkParagrafiSil_(c);
   dc.saveAndClose();
 
   DriveApp.getFileById(dk.getId()).moveTo(klasor);

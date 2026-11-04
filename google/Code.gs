@@ -29,7 +29,7 @@ var SEKIL_EN_GENIS_PX = 413;
 var SEKIL_EN_YUKSEK_PX = 327;
 var SURE_TOLERANSI_SN = 120; // Bağlantı gecikmesi için gönderimde tanınan ek süre.
 var OTURUM_HARFLERI = "ACDEFGHJKMNPQRTUVWXY34679"; // Karışabilecek harf ve rakamlar yok.
-var SISTEM_SURUMU = "16228bc4dc53"; // tools/build.py hesaplar; elle değiştirilmez.
+var SISTEM_SURUMU = "19414223aa6a"; // tools/build.py hesaplar; elle değiştirilmez.
 
 // ---------------------------------------------------------------------------
 // Web uygulaması giriş noktaları
@@ -1910,7 +1910,10 @@ function havuzKontrolIc_(o) {
   havuzDurumYaz_(d);
   gunlukYaz_(gunluk);
   if (gunluk.length || yazilan || o.hepsi) izleriYaz_(d);
-  if (yeniGiren.length && o.eposta !== false) karantinaEpostasi_(yeniGiren);
+  if (yeniGiren.length && o.eposta !== false) {
+    var kHata = karantinaEpostasi_(yeniGiren);
+    if (kHata) gunlukYaz_([{ tarih: new Date(simdi), belge: "", soru_id: "", surum: "", islem: "E-posta gönderilemedi", aciklama: "Karantina uyarısı: " + kHata }]);
+  }
   return { okunan: Object.keys(degisenBelge).length, yazilan: yazilan, belge: liste.belgeler.length, soru: Object.keys(d.sorular).length, karantina: Object.keys(d.karantina).length, yeniKarantina: yeniGiren.length, islem: gunluk.length, klasorHatalari: liste.hatalar };
 }
 
@@ -2034,13 +2037,26 @@ function sahipEposta_() {
   }
 }
 
+/**
+ * E-postayı gönderir; gönderilemezse (ör. e-posta izni verilmemiş) hata fırlatmaz, nedenini döndürür.
+ * Böylece bir e-posta sorunu otomatik kontrolün kendisini durdurmaz.
+ */
+function epostaGonder_(m) {
+  if (!m.to) return "Alıcı adresi bulunamadı.";
+  try {
+    MailApp.sendEmail(m);
+    return "";
+  } catch (e) {
+    return String(e && e.message ? e.message : e).split("\n")[0];
+  }
+}
+
 function karantinaEpostasi_(liste) {
   var kime = sahipEposta_();
-  if (!kime) return;
   var satirlar = liste.map(function (x) {
     return "- " + (x.id ? x.id + (x.surum ? " (Sürüm " + x.surum + ")" : "") : "Başlığı okunamayan soru") + ", " + (x.belgeAdi || "") + "\n  " + x.sorun + (x.belge ? "\n  https://docs.google.com/document/d/" + x.belge + "/edit" : "");
   });
-  MailApp.sendEmail({
+  return epostaGonder_({
     to: kime,
     subject: "Soru Havuzu: " + liste.length + " soru karantinaya alındı",
     body: "Aşağıdaki sorular eksiksiz okunamadığı ya da onaylıyken değiştiği için karantinaya alındı. Düzeltilene kadar yeni sınava, forma ve kitapçığa giremezler.\n\n" + satirlar.join("\n\n") + "\n\nSorun giderildiğinde bir sonraki kontrolde karantinadan kendiliğinden çıkarlar.",
@@ -2402,15 +2418,14 @@ function kilavuzKontrol_(d, log, o) {
   d.kilavuzUyari = anahtar;
   var ne = k.bulunamadi ? "Kullanım kılavuzu bulunamadı (Sınav Sistemi klasöründe \"" + KILAVUZ_ADI + "\" belgesi olmalı)." : "Sistem sürümü " + k.sistem + ", kılavuz " + (k.kilavuz ? k.kilavuz + " sürümüne göre" : "sürüm satırı içermiyor") + ".";
   log({ ad: KILAVUZ_ADI, id: "" }, "", "", "Kılavuz güncellenmeli", ne);
-  var kime = sahipEposta_();
-  if (!kime) return;
-  MailApp.sendEmail({
-    to: kime,
+  var hata = epostaGonder_({
+    to: sahipEposta_(),
     subject: "Sınav sistemi: kullanım kılavuzu güncellenmeli",
     body: "Sistemde değişiklik yapıldı ve kullanım kılavuzu henüz bu değişikliğe göre gözden geçirilmedi.\n\n" + ne + "\n\n" +
       (k.belge ? "Kılavuz: https://docs.google.com/document/d/" + k.belge + "/edit\n\n" : "") +
       "Kılavuzu gözden geçirip gerekli güncellemeyi yaptıktan sonra yönetim panelinin üstündeki \"Kılavuzu gözden geçirdim, güncel\" düğmesine basın. Uyarı o zamana kadar panelde görünür.",
   });
+  if (hata) log({ ad: KILAVUZ_ADI, id: "" }, "", "", "E-posta gönderilemedi", "Kılavuz uyarısı: " + hata);
 }
 
 /** Panel: kılavuzun bu sistem sürümüne göre gözden geçirildiğini kaydeder ve sürüm satırını günceller. */

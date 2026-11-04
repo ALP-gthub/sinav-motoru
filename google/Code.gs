@@ -29,7 +29,7 @@ var SEKIL_EN_GENIS_PX = 413;
 var SEKIL_EN_YUKSEK_PX = 327;
 var SURE_TOLERANSI_SN = 120; // Bağlantı gecikmesi için gönderimde tanınan ek süre.
 var OTURUM_HARFLERI = "ACDEFGHJKMNPQRTUVWXY34679"; // Karışabilecek harf ve rakamlar yok.
-var SISTEM_SURUMU = "8a089fc5490a"; // tools/build.py hesaplar; elle değiştirilmez.
+var SISTEM_SURUMU = "be624123cf62"; // tools/build.py hesaplar; elle değiştirilmez.
 
 // ---------------------------------------------------------------------------
 // Web uygulaması giriş noktaları
@@ -2590,6 +2590,8 @@ function sayfa_(ad) {
   var sh = ss.getSheetByName(ad);
   if (!sh) {
     if (!BASLIKLAR[ad]) throw new Error("Sekme bulunamadı: " + ad);
+    // Sorular belgelerden okunurken eski Havuz sekmesi boş olarak yeniden açılmaz.
+    if (ad === "Havuz" && havuzBelgeKaynagi_()) throw new Error("Havuz sekmesi artık kullanılmıyor; sorular Soru Havuzu belgelerinden okunur.");
     sh = ss.insertSheet(ad);
     sh.getRange(1, 1, 1, BASLIKLAR[ad].length).setValues([BASLIKLAR[ad]]).setFontWeight("bold");
     sh.setFrozenRows(1);
@@ -2920,8 +2922,10 @@ var BASLIKLAR = {
 function kurulum() {
   var ss = SpreadsheetApp.getActive();
   var eklenen = [];
+  var belge = havuzBelgeKaynagi_();
   Object.keys(BASLIKLAR).forEach(function (ad) {
     var sh = ss.getSheetByName(ad);
+    if (!sh && ad === "Havuz" && belge) return; // Sorular belgelerde; eski Havuz sekmesi açılmaz.
     if (!sh) {
       sh = ss.insertSheet(ad);
       eklenen.push(ad + " sekmesi");

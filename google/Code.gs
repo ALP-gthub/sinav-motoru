@@ -29,7 +29,7 @@ var SEKIL_EN_GENIS_PX = 413;
 var SEKIL_EN_YUKSEK_PX = 327;
 var SURE_TOLERANSI_SN = 120; // Bağlantı gecikmesi için gönderimde tanınan ek süre.
 var OTURUM_HARFLERI = "ACDEFGHJKMNPQRTUVWXY34679"; // Karışabilecek harf ve rakamlar yok.
-var SISTEM_SURUMU = "380f1e9a8884"; // tools/build.py hesaplar; elle değiştirilmez.
+var SISTEM_SURUMU = "16228bc4dc53"; // tools/build.py hesaplar; elle değiştirilmez.
 
 // ---------------------------------------------------------------------------
 // Web uygulaması giriş noktaları
@@ -2021,8 +2021,21 @@ function belgeSistemSatirlariniYaz_(b, cz, kr, basliklar, kontrolMetni, islemMet
   doc.saveAndClose();
 }
 
+/**
+ * Uyarı e-postalarının gideceği adres: ana tablonun sahibi. Drive izniyle okunur
+ * (Session.getEffectiveUser ayrı bir izin ister; o izin verilmemiş olabilir).
+ */
+function sahipEposta_() {
+  try {
+    var sahip = DriveApp.getFileById(SpreadsheetApp.getActive().getId()).getOwner();
+    return sahip ? String(sahip.getEmail() || "") : "";
+  } catch (e) {
+    return "";
+  }
+}
+
 function karantinaEpostasi_(liste) {
-  var kime = Session.getEffectiveUser().getEmail();
+  var kime = sahipEposta_();
   if (!kime) return;
   var satirlar = liste.map(function (x) {
     return "- " + (x.id ? x.id + (x.surum ? " (Sürüm " + x.surum + ")" : "") : "Başlığı okunamayan soru") + ", " + (x.belgeAdi || "") + "\n  " + x.sorun + (x.belge ? "\n  https://docs.google.com/document/d/" + x.belge + "/edit" : "");
@@ -2389,7 +2402,7 @@ function kilavuzKontrol_(d, log, o) {
   d.kilavuzUyari = anahtar;
   var ne = k.bulunamadi ? "Kullanım kılavuzu bulunamadı (Sınav Sistemi klasöründe \"" + KILAVUZ_ADI + "\" belgesi olmalı)." : "Sistem sürümü " + k.sistem + ", kılavuz " + (k.kilavuz ? k.kilavuz + " sürümüne göre" : "sürüm satırı içermiyor") + ".";
   log({ ad: KILAVUZ_ADI, id: "" }, "", "", "Kılavuz güncellenmeli", ne);
-  var kime = Session.getEffectiveUser().getEmail();
+  var kime = sahipEposta_();
   if (!kime) return;
   MailApp.sendEmail({
     to: kime,
@@ -2422,7 +2435,7 @@ function kilavuzOnayla() {
     if (!bulundu) ogeleriYaz_(b, [{ s: "kontrol", t: yazi }], null, Math.min(2, b.getNumChildren()));
     doc.saveAndClose();
     var d = havuzDurumOku_();
-    gunlukYaz_([{ tarih: new Date(), belge: KILAVUZ_ADI, soru_id: "", surum: "", islem: "Kılavuz gözden geçirildi", aciklama: "Sistem sürümü " + SISTEM_SURUMU + " için güncel olarak işaretlendi (" + (Session.getEffectiveUser().getEmail() || "") + ")" }]);
+    gunlukYaz_([{ tarih: new Date(), belge: KILAVUZ_ADI, soru_id: "", surum: "", islem: "Kılavuz gözden geçirildi", aciklama: "Sistem sürümü " + SISTEM_SURUMU + " için güncel olarak işaretlendi (" + sahipEposta_() + ")" }]);
     d.kilavuzUyari = "";
     d.kilavuz = kilavuzDurumu_();
     havuzDurumYaz_(d);

@@ -121,6 +121,7 @@ td.chk{width:28px}
   <button data-t="sinavlar" aria-selected="false">Sınavlar</button>
   <button data-t="havuz" aria-selected="false">Soru havuzu</button>
   <span class="spacer"></span>
+  <span class="muted" id="guncel" hidden style="font-size:12px;align-self:center;margin-right:8px">Güncel veriler getiriliyor…</span>
   <button class="refresh" id="refresh">Yenile</button>
 </nav>
 <main>
@@ -341,18 +342,23 @@ td.chk{width:28px}
   document.querySelectorAll(".tabs [data-t]").forEach(function (b) { b.addEventListener("click", function () { sekme(b.dataset.t); }); });
 
   // ---------- Veri ----------
-  function yukle() {
-    yukleniyor(true);
+  function verileriCiz(v) {
+    veri = v;
+    $("genelHata").hidden = true;
+    kilavuzCiz(v.kilavuz);
+    formDoldur();
+    listeCiz();
+    sinavlarCiz();
+    raporSecenekleri();
+  }
+  // arka: sayfa son bilinen verilerle açıkken güncel verinin sessizce getirilmesi
+  function yukle(arka) {
+    if (arka) $("guncel").hidden = false; else yukleniyor(true);
     return sunucu("panelVeri").then(function (v) {
-      veri = v;
-      $("genelHata").hidden = true;
-      kilavuzCiz(v.kilavuz);
-      formDoldur();
-      listeCiz();
-      sinavlarCiz();
-      raporSecenekleri();
+      verileriCiz(v);
       yukleniyor(false);
-    }).catch(function (e) { yukleniyor(false); alertHata(e); });
+      $("guncel").hidden = true;
+    }).catch(function (e) { yukleniyor(false); $("guncel").hidden = true; alertHata(e); });
   }
   function kilavuzCiz(k) {
     $("kvUyari").hidden = !k || k.uyumlu;
@@ -884,7 +890,14 @@ td.chk{width:28px}
     yukle().then(function () { if (!$("t-rapor").hidden && $("rpSel").value) raporYukle(); });
   });
 
-  yukle();
+  // Açılış: önce son bilinen veriler (önbellek), hemen ardından güncel veriler.
+  yukleniyor(true);
+  sunucu("panelVeriOnbellek").then(function (v) {
+    if (!v) return yukle();
+    verileriCiz(v);
+    yukleniyor(false);
+    return yukle(true);
+  }).catch(function () { return yukle(); });
 })();
 </script>
 </body>

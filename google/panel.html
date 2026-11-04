@@ -124,6 +124,7 @@ td.chk{width:28px}
   <button class="refresh" id="refresh">Yenile</button>
 </nav>
 <main>
+  <div class="krbox" id="genelHata" hidden style="margin:0 0 14px"></div>
   <div class="warnbox" id="kvUyari" hidden style="display:flex;gap:12px;align-items:center;margin:0 0 14px"><span id="kvMetin" style="flex:1"></span><button class="btn small" id="kvOnay">Kılavuzu gözden geçirdim, güncel</button></div>
   <!-- Yeni oturum -->
   <section id="t-yeni">
@@ -344,6 +345,7 @@ td.chk{width:28px}
     yukleniyor(true);
     return sunucu("panelVeri").then(function (v) {
       veri = v;
+      $("genelHata").hidden = true;
       kilavuzCiz(v.kilavuz);
       formDoldur();
       listeCiz();
@@ -366,7 +368,13 @@ td.chk{width:28px}
     b.disabled = true;
     sunucu("kilavuzOnayla").then(function (k) { b.disabled = false; kilavuzCiz(k); }).catch(function (e) { b.disabled = false; alert("Hata: " + e); });
   });
-  function alertHata(e) { $("formErr").textContent = "Hata: " + e; $("formErr").hidden = false; }
+  function alertHata(e) {
+    $("formErr").textContent = "Hata: " + e;
+    $("formErr").hidden = false;
+    $("genelHata").innerHTML = "<h3>Panel verileri alınamadı</h3>" + esc(String(e)) +
+      '<div class="ne" style="margin-top:6px">Tarayıcıda birden fazla Google hesabı açıksa bu hata çıkabilir. E-Tabloyu yalnızca E-Tablonun sahibi olan hesabın açık olduğu bir pencerede açıp paneli yeniden deneyin. Sorun sürerse "Yenile"ye basın.</div>';
+    $("genelHata").hidden = false;
+  }
 
   function formDoldur() {
     var sel = $("fSinav");

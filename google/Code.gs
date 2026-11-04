@@ -29,7 +29,7 @@ var SEKIL_EN_GENIS_PX = 413;
 var SEKIL_EN_YUKSEK_PX = 327;
 var SURE_TOLERANSI_SN = 120; // Bağlantı gecikmesi için gönderimde tanınan ek süre.
 var OTURUM_HARFLERI = "ACDEFGHJKMNPQRTUVWXY34679"; // Karışabilecek harf ve rakamlar yok.
-var SISTEM_SURUMU = "19414223aa6a"; // tools/build.py hesaplar; elle değiştirilmez.
+var SISTEM_SURUMU = "9e583f5274e9"; // tools/build.py hesaplar; elle değiştirilmez.
 
 // ---------------------------------------------------------------------------
 // Web uygulaması giriş noktaları
@@ -2355,6 +2355,19 @@ function havuzMenuKontrol() {
   SpreadsheetApp.getActive().toast(r.belge + " belge, " + r.soru + " soru. Karantinada: " + r.karantina + ". Yeni işlem kaydı: " + r.islem + ".", "Soru havuzu kontrolü", 15);
 }
 
+/** Menü: e-posta iznini ister (verilmemişse) ve tablo sahibine bir deneme e-postası gönderir. */
+function havuzMenuEpostaDene() {
+  if (ScriptApp.requireScopes) ScriptApp.requireScopes(ScriptApp.AuthMode.FULL, ["https://www.googleapis.com/auth/script.send_mail"]);
+  var kime = sahipEposta_();
+  var hata = epostaGonder_({
+    to: kime,
+    subject: "Sınav sistemi: e-posta uyarısı denemesi",
+    body: "Bu bir deneme e-postasıdır. Karantina ve kullanım kılavuzu uyarıları bu adrese gönderilecek.",
+  });
+  SpreadsheetApp.getActive().toast(hata ? "E-posta gönderilemedi: " + hata : "Deneme e-postası gönderildi: " + kime, "E-posta uyarısı", 15);
+  return hata;
+}
+
 function havuzMenuOtomatik() {
   SpreadsheetApp.getUi().alert(havuzOtomatikKontrolKur());
 }
@@ -2828,6 +2841,7 @@ function onOpen() {
     .addSeparator()
     .addItem("Soru havuzunu şimdi kontrol et", "havuzMenuKontrol")
     .addItem("Otomatik havuz kontrolünü kur (30 dk)", "havuzMenuOtomatik")
+    .addItem("E-posta uyarısını dene", "havuzMenuEpostaDene")
     .addToUi();
 }
 

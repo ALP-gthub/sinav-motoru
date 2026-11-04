@@ -630,8 +630,12 @@ td.chk{width:28px}
       if (d.durum !== "ARSIV") h += '<button class="btn" data-x="arsiv">Arşivle</button>';
       h += "</div>";
       if (d.formlar.length) {
-        h += '<table style="max-width:560px"><thead><tr><th>Form</th><th>Oluşturma</th><th class="num">Kullanım</th><th class="num">Katılımcı</th></tr></thead><tbody>' +
-          d.formlar.map(function (f) { return "<tr><td>Form " + esc(f.form) + "</td><td>" + esc(gun(f.olusturma)) + '</td><td class="num">' + f.kullanim + '</td><td class="num">' + f.katilimci + "</td></tr>"; }).join("") + "</tbody></table>";
+        var belge = function (id, ad) { return id ? belgeLink(id, ad) : ""; };
+        h += '<table style="max-width:760px"><thead><tr><th>Form</th><th>Oluşturma</th><th class="num">Kullanım</th><th class="num">Katılımcı</th><th>Kitapçık ve cevap anahtarı</th></tr></thead><tbody>' +
+          d.formlar.map(function (f) {
+            var kb = f.kitapcik || f.anahtar ? belge(f.kitapcik, "Kitapçık") + (f.kitapcik && f.anahtar ? " · " : "") + belge(f.anahtar, "Cevap anahtarı") : d.durum === "ONAYLI" ? '<button class="btn small" data-x="kitapcik" data-form="' + esc(f.form) + '">Kitapçık oluştur</button>' : "";
+            return "<tr><td>Form " + esc(f.form) + "</td><td>" + esc(gun(f.olusturma)) + '</td><td class="num">' + f.kullanim + '</td><td class="num">' + f.katilimci + "</td><td>" + kb + "</td></tr>";
+          }).join("") + "</tbody></table>";
         h += '<p class="hint">Aynı çalışmada sınav tekrarlanacaksa yeni form oluşturun: soruların sırası bölüm içinde ve şıkların yeri değişir, ortak şekilli sorular birlikte kalır. Sorular aynı olduğu için sonuçlar karşılaştırılabilir.</p>';
       }
       if (d.durum === "ONAYLI") {
@@ -658,6 +662,10 @@ td.chk{width:28px}
     if (b.dataset.x === "onayla") sunucu("sinavOnayla", [kod]).then(yenile).catch(hata);
     if (b.dataset.x === "form") sunucu("formOlustur", [kod]).then(yenile).catch(hata);
     if (b.dataset.x === "arsiv") sunucu("sinavArsivle", [kod]).then(yenile).catch(hata);
+    if (b.dataset.x === "kitapcik") {
+      b.textContent = "Oluşturuluyor, bir dakika kadar sürebilir…";
+      sunucu("kitapcikOlustur", [kod, b.dataset.form]).then(function () { return sinavAc(kod); }).catch(function (err) { b.textContent = "Kitapçık oluştur"; hata(err); });
+    }
     if (b.dataset.x === "kagit") sunucu("kullanimEkle", [{ sinav: kod, tarih: $("kgTarih").value, katilimci_sayisi: $("kgKisi").value, form: $("kgForm").value.toUpperCase(), tur: "KAGIT", not: $("kgNot").value }]).then(yenile).catch(hata);
   });
 

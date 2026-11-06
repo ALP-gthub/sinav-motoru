@@ -29,7 +29,7 @@ var SEKIL_EN_GENIS_PX = 413;
 var SEKIL_EN_YUKSEK_PX = 327;
 var SURE_TOLERANSI_SN = 120; // Bağlantı gecikmesi için gönderimde tanınan ek süre.
 var OTURUM_HARFLERI = "ACDEFGHJKMNPQRTUVWXY34679"; // Karışabilecek harf ve rakamlar yok.
-var SISTEM_SURUMU = "954924871d04"; // tools/build.py hesaplar; elle değiştirilmez.
+var SISTEM_SURUMU = "c2590e795e3d"; // tools/build.py hesaplar; elle değiştirilmez.
 
 // ---------------------------------------------------------------------------
 // Web uygulaması giriş noktaları
@@ -773,10 +773,15 @@ function tarihGosterim_(ms) {
   return Utilities.formatDate(new Date(ms), SpreadsheetApp.getActive().getSpreadsheetTimeZone() || "Europe/Istanbul", "dd.MM.yyyy");
 }
 
-/** Soru belgesinde sorunun altındaki tek satırlık kullanım özeti (yalnızca kayıtlı verilerden). */
-function kullanimSatiri_(z) {
-  if (!z || !z.sinavlar.length) return "Kullanım: henüz hiçbir sınavda yer almadı.";
-  var p = ["Yer aldığı sınavlar: " + z.sinavlar.join(", ")];
+/** Soru belgesinde sorunun altındaki tek satırlık kullanım özeti (yalnızca kayıtlı verilerden).
+ *  t: { kayit: ms, onay: ms } varsa satırın başına kayıt ve onay tarihi yazılır. */
+function kullanimSatiri_(z, t) {
+  var bas = [];
+  if (t && t.kayit) bas.push("Kayıt " + tarihGosterim_(t.kayit));
+  if (t && t.onay) bas.push("Onay " + tarihGosterim_(t.onay));
+  var on = bas.length ? bas.join(" · ") + " · " : "";
+  if (!z || !z.sinavlar.length) return "Kullanım: " + on + "henüz hiçbir sınavda yer almadı.";
+  var p = bas.concat(["Yer aldığı sınavlar: " + z.sinavlar.join(", ")]);
   p.push("Sorulduğu kişi: " + (z.katilimci || 0));
   var f = Object.keys(z.firmalar || {});
   if (f.length) p.push("Firmalar: " + f.join(", "));
@@ -853,6 +858,7 @@ var BELGE_STIL = {
   gerekce: { renk: "#666666", boy: 9 },
   kaynak: { renk: "#666666", boy: 9 },
   kullanim: { renk: "#666666", boy: 9, italik: true },
+  kazanim: { renk: "#666666", boy: 9, italik: true },
   not: { renk: "#666666", boy: 9 },
 };
 
@@ -906,6 +912,7 @@ function soruOgeleri_(q, o) {
   l.push({ s: "dogru", t: "Doğru cevap: " + q.dogru + (q.tolerans ? " (tolerans ±" + q.tolerans + ")" : "") });
   l.push({ s: "gerekce", t: "Gerekçe: " + (q.gerekce || "") });
   l.push({ s: "kaynak", t: "Kaynak: " + kaynakGosterim_(q.kaynak) });
+  if (q.kazanim) l.push({ s: "kazanim", t: "Kazanım: " + q.kazanim });
   if (o.kullanim) l.push({ s: "kullanim", t: o.kullanim });
   (o.notlar || []).forEach(function (n) {
     l.push({ s: "not", t: n });
@@ -1478,6 +1485,12 @@ function bilgiIzi_(k) {
  * "Kazanım: konu / yön" satırını çözer. Boş satır "" döner, biçim hatalıysa null.
  * Konu genel başlıktır (aynı konuda birden çok soru olabilir); yön sorunun ölçtüğü özgün bilgidir.
  */
+function kayitKazanimla_(k, kz) {
+  var c = kopya_(k);
+  c.kazanim = kz;
+  return c;
+}
+
 function kazanimCoz_(t) {
   var v = String(t).replace(/^Kazanım\s*:\s*/, "").trim();
   if (!v) return "";
@@ -1858,7 +1871,12 @@ function havuzKontrolIc_(o) {
         var nOnce = (onceki.kayit.notlar || []).length;
         var nSimdi = (k.notlar || []).length;
         if (nOnce !== nSimdi) log(b, k.soru_id, k.surum, nSimdi > nOnce ? "İyileştirme notu eklendi" : "İyileştirme notu silindi", nOnce + " → " + nSimdi);
-        else log(b, k.soru_id, k.surum, "Bilgi güncellendi", "Zorluk, gerekçe, kaynak ya da not");
+        else {
+          var kzOnce = onceki.kayit.kazanim || "";
+          var yalnizKazanim = kzOnce !== (k.kazanim || "") && bilgiIzi_(kayitKazanimla_(k, kzOnce)) === onceki.bilgi;
+          if (yalnizKazanim) log(b, k.soru_id, k.surum, "Kazanım güncellendi", (kzOnce || "yok") + " → " + (k.kazanim || "yok"));
+          else log(b, k.soru_id, k.surum, "Bilgi güncellendi", "Zorluk, gerekçe, kaynak, kazanım ya da not");
+        }
       }
       if (onceki.belge !== b.id) log(b, k.soru_id, k.surum, "Taşındı", (onceki.belgeAdi || "") + " → " + b.ad);
       d.sorular[key] = kayitYeni;
@@ -1914,6 +1932,7 @@ function havuzKontrolIc_(o) {
   // Kullanım satırları (yalnızca bölüm belgelerindeki eksiksiz okunan sorular için)
   var beklenenKullanim = {};
   try {
+    soruTarihleri_(d, gunluk);
     beklenenKullanim = kullanimMetinleri_(d);
   } catch (e) {
     log("", "", "", "Kullanım satırları güncellenemedi", String(e && e.message ? e.message : e));
@@ -2081,6 +2100,36 @@ function mukerrerDenetimi_(liste, okunan, d) {
 }
 
 /** Bölüm belgelerindeki her sorunun beklenen kullanım satırı: { id: "Kullanım: ..." } */
+/**
+ * Soruların kayıt ve onay tarihlerini d.tarihler içinde tutar: { soru_id: { kayit: ms, onay: ms } }.
+ * İlk çalışmada eksikler işlem kaydından (Havuz_Gunlugu) doldurulur; sonra her kontrolün kendi kayıtları eklenir.
+ * Kayıt: soru kodunun ilk görüldüğü tarih. Onay: sorunun ilk kez onaylı duruma geçtiği tarih.
+ */
+function soruTarihleri_(d, gunluk) {
+  var t = (d.tarihler = d.tarihler || {});
+  var ekle = function (id, ms, islem, aciklama) {
+    id = String(id || "");
+    if (!id || !ms) return;
+    var x = (t[id] = t[id] || {});
+    if (!x.kayit || ms < x.kayit) x.kayit = ms;
+    var onay = islem === "Onaylandı" || ((islem === "İlk kayıt" || islem === "Yeni soru eklendi") && aciklama === "Onaylı");
+    if (onay && (!x.onay || ms < x.onay)) x.onay = ms;
+  };
+  if (!d.tarihlerDolduruldu) {
+    try {
+      tablo_("Havuz_Gunlugu").kayitlar.forEach(function (r) {
+        var g = r.kayit;
+        var ms = g.tarih instanceof Date ? g.tarih.getTime() : 0;
+        ekle(g.soru_id, ms, String(g.islem || ""), String(g.aciklama || ""));
+      });
+    } catch (e) {}
+    d.tarihlerDolduruldu = true;
+  }
+  (gunluk || []).forEach(function (g) {
+    ekle(g.soru_id, g.tarih instanceof Date ? g.tarih.getTime() : 0, g.islem, g.aciklama);
+  });
+}
+
 function kullanimMetinleri_(d) {
   var m = {};
   Object.keys(d.sorular).forEach(function (key) {
@@ -2092,7 +2141,7 @@ function kullanimMetinleri_(d) {
   var ozet = kullanimOzeti_(m).soru;
   var l = {};
   Object.keys(m).forEach(function (key) {
-    l[m[key].soru_id] = kullanimSatiri_(ozet[m[key].soru_id]);
+    l[m[key].soru_id] = kullanimSatiri_(ozet[m[key].soru_id], (d.tarihler || {})[m[key].soru_id]);
   });
   return l;
 }
@@ -2158,6 +2207,17 @@ function belgeSistemSatirlariniYaz_(b, cz, kr, basliklar, kontrolMetni, islemMet
     }
     if (kaynakSira >= 0) ogeleriYaz_(body, [{ s: "kullanim", t: kullanimYaz[id] }], null, kaynakSira + 1);
   });
+  // Kazanım satırları: kullanım satırı gibi küçük, gri ve italik (elle eklenenler de bu biçime getirilir)
+  for (var kj = 0; kj < body.getNumChildren(); kj++) {
+    if (!/^Kazanım\s*:/.test(metin(kj))) continue;
+    var kt = body.getChild(kj).asParagraph().editAsText();
+    if (kt.getFontSize() !== 9 || !kt.isItalic() || kt.getForegroundColor() !== "#666666") {
+      kt.setFontSize(9);
+      kt.setForegroundColor("#666666");
+      kt.setItalic(true);
+      kt.setBold(false);
+    }
+  }
   // Karantina satırları, sorunlu başlıkların hemen altına (sondan başa, sıralar kaymasın diye).
   var hedefler = [];
   kr.forEach(function (x) {

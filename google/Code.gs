@@ -29,7 +29,7 @@ var SEKIL_EN_GENIS_PX = 413;
 var SEKIL_EN_YUKSEK_PX = 327;
 var SURE_TOLERANSI_SN = 120; // Bağlantı gecikmesi için gönderimde tanınan ek süre.
 var OTURUM_HARFLERI = "ACDEFGHJKMNPQRTUVWXY34679"; // Karışabilecek harf ve rakamlar yok.
-var SISTEM_SURUMU = "c2590e795e3d"; // tools/build.py hesaplar; elle değiştirilmez.
+var SISTEM_SURUMU = "2003c461f030"; // tools/build.py hesaplar; elle değiştirilmez.
 
 // ---------------------------------------------------------------------------
 // Web uygulaması giriş noktaları
@@ -1141,7 +1141,11 @@ function iz_(metin) {
  * resimler: md5 -> blob (şekil saklamak için).
  */
 function belgeOgeleriniOku_(belgeId, resimler) {
-  var b = DocumentApp.openById(belgeId).getBody();
+  return govdeOgeleri_(DocumentApp.openById(belgeId).getBody(), resimler);
+}
+
+/** Belge gövdesinin öğe listesi (belgeOgeleriniOku_ ile aynı; açık bir gövdeden okur). */
+function govdeOgeleri_(b, resimler) {
   var l = [];
   for (var i = 0; i < b.getNumChildren(); i++) {
     var c = b.getChild(i);
@@ -1716,6 +1720,9 @@ function havuzKontrolIc_(o) {
   var saf = {};
   var resimler = {};
   var degisenBelge = {};
+  var hamOgeler = {};
+  // Aşama süreleri (milisaniye): çalışma kaydına tek satır yazılır (Apps Script > Yürütmeler).
+  var sure = { okuma: 0, yazma: 0 };
   liste.belgeler.forEach(function (b) {
     var onceki = d.belgeler[b.id];
     if (!o.hepsi && onceki && onceki.guncelleme === b.guncelleme && onceki.cozum) {
@@ -1723,7 +1730,10 @@ function havuzKontrolIc_(o) {
       saf[b.id] = onceki.cozum;
       return;
     }
+    var t0 = Date.now();
     var ogeler = belgeOgeleriniOku_(b.id, resimler);
+    sure.okuma += Date.now() - t0;
+    hamOgeler[b.id] = ogeler;
     var cz = havuzBelgesiniCoz_(ogeler, { konu: b.konu, bolum: b.eski ? "" : b.bolum, belgeId: b.id, belgeAdi: b.ad, eski: b.eski });
     saf[b.id] = kopya_(cz);
     okunan[b.id] = cz;
@@ -1965,10 +1975,13 @@ function havuzKontrolIc_(o) {
       var kontrolMetni = "Kontrol: " + tarihGosterimSaat_(simdi) + " · " + sayi + " soru · " + (kr.length ? kr.length + " kayıt karantinada: " + kr.map(function (x) { return x.id || "belge uyarısı"; }).join(", ") : "tümü eksiksiz okundu");
       var si = onceki.sonIslem;
       var islemMetni = si ? "Son işlem: " + tarihGosterimSaat_(new Date(si.tarih).getTime()) + " · " + (si.soru_id ? si.soru_id + " " : "") + si.islem : "";
-      belgeSistemSatirlariniYaz_(b, okunan[b.id], kr, basliklar, kontrolMetni, islemMetni, !!kr.length, kullanimYaz);
+      var t0 = Date.now();
+      var sonOgeler = belgeSistemSatirlariniYaz_(b, okunan[b.id], kr, basliklar, kontrolMetni, islemMetni, !!kr.length, kullanimYaz, hamOgeler[b.id]);
       Object.keys(kullanimYaz).forEach(function (id) { d.kullanim[id] = kullanimYaz[id]; });
-      // Sistem satırları paragraf sıralarını değiştirdiği için çözüm yeniden okunur (içerik izi değişmez).
-      cz = havuzBelgesiniCoz_(belgeOgeleriniOku_(b.id), { konu: b.konu, bolum: b.eski ? "" : b.bolum, belgeId: b.id, belgeAdi: b.ad, eski: b.eski });
+      // Sistem satırları paragraf sıralarını değiştirdiği için çözüm, yazılan belgenin son öğe listesinden yeniden kurulur
+      // (belge ikinci kez okunmaz; içerik izi değişmez).
+      cz = havuzBelgesiniCoz_(sonOgeler, { konu: b.konu, bolum: b.eski ? "" : b.bolum, belgeId: b.id, belgeAdi: b.ad, eski: b.eski });
+      sure.yazma += Date.now() - t0;
       yazilan++;
     }
     d.belgeler[b.id] = { ad: b.ad, klasor: b.klasor, konu: b.konu, bolum: b.bolum, eski: b.eski, guncelleme: yazilacak ? DriveApp.getFileById(b.id).getLastUpdated().getTime() : b.guncelleme, cozum: cz, krIzi: krIzi, sonIslem: onceki.sonIslem || null, okuma: yazilacak || degisenBelge[b.id] ? simdi : onceki.okuma };
@@ -1993,9 +2006,13 @@ function havuzKontrolIc_(o) {
   kilavuzKontrol_(d, log, o);
   d.sonKontrol = simdi;
 
+  var t1 = Date.now();
   havuzDurumYaz_(d);
   gunlukYaz_(gunluk);
   if (gunluk.length || yazilan || o.hepsi) izleriYaz_(d);
+  sure.kayit = Date.now() - t1;
+  sure.toplam = Date.now() - simdi;
+  console.log("Havuz kontrolü süreleri (ms): " + JSON.stringify(sure) + " · okunan " + Object.keys(degisenBelge).length + " · yazılan " + yazilan + " · işlem " + gunluk.length);
   if (yeniGiren.length && o.eposta !== false) {
     var kHata = karantinaEpostasi_(yeniGiren);
     if (kHata) gunlukYaz_([{ tarih: new Date(simdi), belge: "", soru_id: "", surum: "", islem: "E-posta gönderilemedi", aciklama: "Karantina uyarısı: " + kHata }]);
@@ -2154,93 +2171,134 @@ function kayitTemiz_(k) {
   return o;
 }
 
-/** Belgedeki sistem satırlarını (kontrol, son işlem, karantina uyarıları, yeni kodlar) günceller. */
-function belgeSistemSatirlariniYaz_(b, cz, kr, basliklar, kontrolMetni, islemMetni, kirmizi, kullanimYaz) {
+/**
+ * Belgedeki sistem satırlarını (kontrol, son işlem, karantina uyarıları, yeni kodlar, kullanım) günceller.
+ * Hız için belge bir kez okunur: satır metinleri bellekteki öğe listesinde tutulur ve her değişiklikte
+ * bu liste de güncellenir. Okuma aşamasında bu çalışmada okunmuş öğe listesi verilirse (ogeler) belge hiç
+ * yeniden okunmaz. Dönüş: belgenin yazımdan sonraki öğe listesi (belgeOgeleriniOku_ ile aynı biçim).
+ */
+function belgeSistemSatirlariniYaz_(b, cz, kr, basliklar, kontrolMetni, islemMetni, kirmizi, kullanimYaz, ogeler) {
   var doc = DocumentApp.openById(b.id);
   var body = doc.getBody();
-  var metin = function (i) {
-    var c = body.getChild(i);
-    return c.getType() === DocumentApp.ElementType.PARAGRAPH ? c.asParagraph().getText() : "";
+  // Okumadan bu yana belge değiştiyse (paragraf sayısı farklı) verilen liste kullanılmaz, belge okunur.
+  var l = ogeler && ogeler.length === body.getNumChildren() ? ogeler.slice() : govdeOgeleri_(body);
+  var bos = function (t) { return { t: satirMetni_(t), tip: "P", gorsel: [], sorun: "" }; };
+  var metin = function (i) { return l[i].tip === "P" ? l[i].t : ""; };
+  var sil = function (i) {
+    if (i === l.length - 1) {
+      body.appendParagraph("");
+      l.push(bos(""));
+    }
+    body.getChild(i).removeFromParent();
+    l.splice(i, 1);
+  };
+  var ekle = function (konum, oge) {
+    ogeleriYaz_(body, [oge], null, konum);
+    l.splice(konum, 0, bos(oge.t));
+  };
+  var metinYaz = function (i, t) {
+    body.getChild(i).asParagraph().setText(t);
+    l[i] = bos(t);
+  };
+  var griItalik = function (i) {
+    var tx = body.getChild(i).asParagraph().editAsText();
+    tx.setFontSize(9);
+    tx.setForegroundColor("#666666");
+    tx.setItalic(true);
+    tx.setBold(false);
   };
   // Eski sistem satırlarını sil (sondan başa).
-  for (var i = body.getNumChildren() - 1; i >= 0; i--) {
+  for (var i = l.length - 1; i >= 0; i--) {
     var t = metin(i);
-    if (t.indexOf(KARANTINA_ONEK) === 0 || (i < 6 && (/^Kontrol:/.test(t) || /^Son işlem:/.test(t)))) {
-      if (i === body.getNumChildren() - 1) body.appendParagraph("");
-      body.getChild(i).removeFromParent();
-    }
+    if (t.indexOf(KARANTINA_ONEK) === 0 || (i < 6 && (/^Kontrol:/.test(t) || /^Son işlem:/.test(t)))) sil(i);
   }
-  // Yeni kod verilen başlıklar.
+  // Yeni kod verilen başlıklar (sırayla, belgedeki YENİ başlıklarına).
+  var yeniAra = 0;
   basliklar.forEach(function (x) {
-    for (var j = 0; j < body.getNumChildren(); j++) {
-      var tt = metin(j);
-      if (/^YEN[İI](\s|·|$)/.test(tt)) {
-        var p = body.getChild(j).asParagraph();
-        p.setText(soruBasligi_(x.s.kayit));
-        p.setHeading(DocumentApp.ParagraphHeading.HEADING2);
+    for (var j = yeniAra; j < l.length; j++) {
+      if (/^YEN[İI](\s|·|$)/.test(metin(j))) {
+        metinYaz(j, soruBasligi_(x.s.kayit));
+        body.getChild(j).asParagraph().setHeading(DocumentApp.ParagraphHeading.HEADING2);
+        yeniAra = j + 1;
         break;
       }
     }
   });
-  // Kullanım satırları
-  Object.keys(kullanimYaz || {}).forEach(function (id) {
-    var bas = -1;
-    for (var j = 0; j < body.getNumChildren(); j++) {
-      var m = SORU_BASLIK_RE.exec(metin(j));
-      if (m && m[1] === id) { bas = j; break; }
+  // Soru başlıklarının sırası (tek tarama)
+  var basSira = function () {
+    var m = {};
+    for (var j = 0; j < l.length; j++) {
+      var mm = SORU_BASLIK_RE.exec(metin(j));
+      if (mm && m[mm[1]] === undefined) m[mm[1]] = j;
     }
-    if (bas < 0) return;
-    var kaynakSira = -1;
-    for (var j2 = bas + 1; j2 < body.getNumChildren(); j2++) {
-      var t2 = metin(j2);
-      if (SORU_BASLIK_RE.test(t2) || /^Ortak şekil /.test(t2)) break;
-      if (/^Kullanım:/.test(t2)) {
-        body.getChild(j2).asParagraph().setText(kullanimYaz[id]);
-        var tx = body.getChild(j2).asParagraph().editAsText();
-        tx.setFontSize(9);
-        tx.setForegroundColor("#666666");
-        tx.setItalic(true);
-        tx.setBold(false);
-        return;
+    return m;
+  };
+  // Kullanım satırları: Kazanım satırının (yoksa Kaynak satırının) hemen altına. Sondan başa yazılır ki sıralar kaymasın.
+  var bs = basSira();
+  Object.keys(kullanimYaz || {}).filter(function (id) { return bs[id] !== undefined; })
+    .sort(function (a, c) { return bs[c] - bs[a]; })
+    .forEach(function (id) {
+      var bas = bs[id];
+      var kaynakSira = -1, kazanimSira = -1, kullanimSira = -1;
+      for (var j2 = bas + 1; j2 < l.length; j2++) {
+        var t2 = metin(j2);
+        if (SORU_BASLIK_RE.test(t2) || /^Ortak şekil /.test(t2)) break;
+        if (/^Kullanım:/.test(t2)) { if (kullanimSira < 0) kullanimSira = j2; }
+        else if (/^Kaynak\s*:/.test(t2)) kaynakSira = j2;
+        else if (/^Kazanım\s*:/.test(t2)) kazanimSira = j2;
       }
-      if (/^Kaynak\s*:/.test(t2)) kaynakSira = j2;
+      if (kullanimSira >= 0) {
+        metinYaz(kullanimSira, kullanimYaz[id]);
+        griItalik(kullanimSira);
+      } else if (kaynakSira >= 0) {
+        ekle((kazanimSira > kaynakSira ? kazanimSira : kaynakSira) + 1, { s: "kullanim", t: kullanimYaz[id] });
+      }
+    });
+  // Sıra düzeltme: Kazanım satırı Kullanım satırının hemen altındaysa yer değiştirir (önceki sürüm Kullanım'ı Kaynak'ın altına yazıyordu).
+  for (var sj = 0; sj + 1 < l.length; sj++) {
+    if (/^Kullanım:/.test(metin(sj)) && /^Kazanım\s*:/.test(metin(sj + 1))) {
+      var kul = body.getChild(sj).asParagraph().getText();
+      var kaz = body.getChild(sj + 1).asParagraph().getText();
+      metinYaz(sj, kaz);
+      metinYaz(sj + 1, kul);
+      griItalik(sj);
+      griItalik(sj + 1);
+      l[sj].bicimli = true;
+      sj++;
     }
-    if (kaynakSira >= 0) ogeleriYaz_(body, [{ s: "kullanim", t: kullanimYaz[id] }], null, kaynakSira + 1);
-  });
+  }
   // Kazanım satırları: kullanım satırı gibi küçük, gri ve italik (elle eklenenler de bu biçime getirilir)
-  for (var kj = 0; kj < body.getNumChildren(); kj++) {
+  for (var kj = 0; kj < l.length; kj++) {
     if (!/^Kazanım\s*:/.test(metin(kj))) continue;
+    if (l[kj].bicimli) { delete l[kj].bicimli; continue; }
     var kt = body.getChild(kj).asParagraph().editAsText();
-    if (kt.getFontSize() !== 9 || !kt.isItalic() || kt.getForegroundColor() !== "#666666") {
-      kt.setFontSize(9);
-      kt.setForegroundColor("#666666");
-      kt.setItalic(true);
-      kt.setBold(false);
-    }
+    if (kt.getFontSize() !== 9 || !kt.isItalic() || kt.getForegroundColor() !== "#666666") griItalik(kj);
   }
   // Karantina satırları, sorunlu başlıkların hemen altına (sondan başa, sıralar kaymasın diye).
   var hedefler = [];
   kr.forEach(function (x) {
     if (!x.baslik) return;
-    for (var j = 0; j < body.getNumChildren(); j++) {
+    for (var j = 0; j < l.length; j++) {
       if (satirMetni_(metin(j)) === x.baslik) hedefler.push({ i: j, t: KARANTINA_ONEK + x.sorun + " (" + tarihGosterimSaat_(x.ilk) + ")" });
     }
   });
   hedefler.sort(function (a, c) { return c.i - a.i; }).forEach(function (h) {
-    ogeleriYaz_(body, [{ s: "karantina", t: h.t }], null, h.i + 1);
+    ekle(h.i + 1, { s: "karantina", t: h.t });
   });
   // Belge başındaki durum satırları: başlık ve alt başlıktan sonra.
-  var konum = Math.min(2, body.getNumChildren());
-  var ogeler = [{ s: kirmizi ? "kontrol_kirmizi" : "kontrol", t: kontrolMetni }];
-  if (islemMetni) ogeler.push({ s: "islem", t: islemMetni });
-  ogeleriYaz_(body, ogeler, null, konum);
+  var konum = Math.min(2, l.length);
+  ekle(konum, { s: kirmizi ? "kontrol_kirmizi" : "kontrol", t: kontrolMetni });
+  if (islemMetni) ekle(konum + 1, { s: "islem", t: islemMetni });
   // Alt başlıktaki soru sayısı
-  var alt = metin(1);
+  var alt = l.length > 1 && l[1].tip === "P" ? body.getChild(1).asParagraph().getText() : "";
   if (/ · \d+ soru$/.test(alt)) {
     var yeniAlt = alt.replace(/ · \d+ soru$/, " · " + cz.sorular.length + " soru");
-    if (yeniAlt !== alt) body.getChild(1).asParagraph().setText(yeniAlt);
+    if (yeniAlt !== alt) metinYaz(1, yeniAlt);
   }
+  // Güvenlik: liste belgeyle aynı uzunlukta değilse belge yeniden okunur.
+  if (l.length !== body.getNumChildren()) l = govdeOgeleri_(body);
   doc.saveAndClose();
+  return l;
 }
 
 /**

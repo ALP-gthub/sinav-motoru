@@ -29,7 +29,7 @@ var SEKIL_EN_GENIS_PX = 413;
 var SEKIL_EN_YUKSEK_PX = 327;
 var SURE_TOLERANSI_SN = 120; // Bağlantı gecikmesi için gönderimde tanınan ek süre.
 var OTURUM_HARFLERI = "ACDEFGHJKMNPQRTUVWXY34679"; // Karışabilecek harf ve rakamlar yok.
-var SISTEM_SURUMU = "2003c461f030"; // tools/build.py hesaplar; elle değiştirilmez.
+var SISTEM_SURUMU = "7dd05325f6d3"; // tools/build.py hesaplar; elle değiştirilmez.
 
 // ---------------------------------------------------------------------------
 // Web uygulaması giriş noktaları
@@ -2067,7 +2067,7 @@ function kazanimAnahtar_(kz) {
  * Bölüm belgelerindeki etkin (onaylı ya da taslak) soruları karşılaştırır. Kullanım dışı ve eski sürümler karşılaştırmaya girmez.
  * Havuza yeni giren soru (taslak, ya da daha önce onaylı kaydı olmayan) şu durumlarda hata alır ve karantinaya düşer:
  *  - aynı konudaki bir soruyla aynı kazanım (konu ve yön),
- *  - aynı konudaki bir soruyla metin benzerliği BENZER_ENGEL ve üstü.
+ *  - aynı konudaki bir soruyla metin benzerliği BENZER_ENGEL ve üstü (iki soru da şekilliyse ve şekilleri farklıysa yalnızca uyarı).
  * Benzerliği BENZER_UYARI ile BENZER_ENGEL arasında olanlar ve aynı kazanımı taşıyan iki onaylı soru uyarı olarak döner.
  * Dönüş: { soru_id: ["ELK-0004 ile benzerlik %33", ...] }
  */
@@ -2085,6 +2085,7 @@ function mukerrerDenetimi_(liste, okunan, d) {
         s: s, id: k.soru_id, konu: b.konu,
         yeni: k.durum === "TASLAK" || !onceki || onceki.kayit.durum !== "ONAYLI",
         kume: benzerKume_(metin), kz: kazanimAnahtar_(k.kazanim), kzMetin: k.kazanim,
+        sekil: sekilAdlari_(k).concat(k.grup_gorsel ? [k.grup_gorsel] : []).sort().join(","),
       });
     });
   });
@@ -2109,7 +2110,10 @@ function mukerrerDenetimi_(liste, okunan, d) {
       }
       var oran = benzerOran_(a.kume, b.kume);
       var yuzde = "%" + Math.round(oran * 100);
-      if (oran >= BENZER_ENGEL) hata(a, "Mükerrer: " + b.id + " ile metin benzerliği " + yuzde + ". Soru neredeyse aynı; farklı bir yönü soracak biçimde yeniden yazın ya da silin.");
+      // Şekilli iki sorunun metni aynı olabilir ("Aşağıdaki sembollerden hangisi..."); şekilleri farklıysa yalnızca uyarı.
+      var sekilFarkli = a.sekil && b.sekil && a.sekil !== b.sekil;
+      if (oran >= BENZER_ENGEL && sekilFarkli) uyar(a.id, b.id + " ile metin benzerliği " + yuzde + " (şekiller farklı)");
+      else if (oran >= BENZER_ENGEL) hata(a, "Mükerrer: " + b.id + " ile metin benzerliği " + yuzde + ". Soru neredeyse aynı; farklı bir yönü soracak biçimde yeniden yazın ya da silin.");
       else if (oran >= BENZER_UYARI) uyar(a.id, b.id + " ile benzerlik " + yuzde);
     });
   });

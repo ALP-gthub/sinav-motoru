@@ -127,6 +127,7 @@ td.chk{width:28px}
 <main>
   <div class="krbox" id="genelHata" hidden style="margin:0 0 14px"></div>
   <div class="warnbox" id="kvUyari" hidden style="display:flex;gap:12px;align-items:center;margin:0 0 14px"><span id="kvMetin" style="flex:1"></span><button class="btn small" id="kvOnay">Kılavuzu gözden geçirdim, güncel</button></div>
+  <div class="warnbox" id="tsUyari" hidden style="display:flex;gap:12px;align-items:center;margin:0 0 14px"><span id="tsMetin" style="flex:1"></span><button class="btn small" id="tsGoster">Soruları göster</button></div>
   <!-- Yeni oturum -->
   <section id="t-yeni">
     <div class="grid2">
@@ -347,6 +348,7 @@ td.chk{width:28px}
     veri = v;
     $("genelHata").hidden = true;
     kilavuzCiz(v.kilavuz);
+    taslakCiz(v.taslak);
     formDoldur();
     listeCiz();
     sinavlarCiz();
@@ -361,6 +363,17 @@ td.chk{width:28px}
       $("guncel").hidden = true;
     }).catch(function (e) { yukleniyor(false); $("guncel").hidden = true; alertHata(e); });
   }
+  function taslakCiz(n) {
+    $("tsUyari").hidden = !n;
+    if (n) $("tsMetin").innerHTML = "<b>" + n + " yeni soru sınavlara eklenmeyi bekliyor.</b> Sorular hazır; siz kontrol edip \"Onayla\"ya bastıktan sonra sınavlarda kullanılır.";
+  }
+  $("tsGoster").addEventListener("click", function () {
+    sekme("havuz");
+    havuzYukle().then(function () {
+      $("hvDurum").value = "TASLAK";
+      $("hvDurum").dispatchEvent(new Event("change"));
+    });
+  });
   function kilavuzCiz(k) {
     $("kvUyari").hidden = !k || k.uyumlu;
     if (!k || k.uyumlu) return;
